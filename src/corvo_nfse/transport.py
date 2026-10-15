@@ -228,6 +228,7 @@ class Transport:
             page, error = await self.list_page(path, page_query, map_props=map_props)
             if error is not None:
                 raise error
+            assert page is not None  # list_page returns (None, error) only on failure.
             for item in page.get("data") or []:
                 yield item
             pagination = page.get("pagination") or {}
@@ -323,7 +324,12 @@ class Transport:
             message = str(body["error"])
         else:
             message = f"Request failed with status {response.status_code}"
-        details = body.get("details") if isinstance(body.get("details"), list) else []
+        raw_details = body.get("details")
+        details: list[Dict[str, Any]] = (
+            [part for part in raw_details if isinstance(part, dict)]
+            if isinstance(raw_details, list)
+            else []
+        )
         request_id = body.get("requestId") or response.headers.get("X-Request-Id")
         retry_after = body.get("retryAfter")
         if not isinstance(retry_after, (int, float)):
