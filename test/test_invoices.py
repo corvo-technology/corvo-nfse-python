@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import httpx
 import respx
 
@@ -220,7 +222,7 @@ async def test_download_url(corvo: Corvo) -> None:
     data, error = await corvo.invoices.download_url("inv_1", "pdf")
     assert error is None
     assert data["fileName"] == "x.pdf"
-    assert route.calls[0].request.content == b'{"format": "pdf"}'
+    assert json.loads(route.calls[0].request.content) == {"format": "pdf"}
 
 
 @respx.mock

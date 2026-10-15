@@ -97,6 +97,13 @@ async def test_deliveries_list_and_iterate(corvo: Corvo) -> None:
             httpx.Response(
                 200,
                 json={
+                    "data": [delivery],
+                    "pagination": {"hasMore": True, "nextCursor": "cur_2"},
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
                     "data": [{**delivery, "id": "dlv_2"}],
                     "pagination": {"hasMore": False, "nextCursor": None},
                 },
@@ -197,6 +204,13 @@ async def test_credits_history_and_iterate(corvo: Corvo) -> None:
             httpx.Response(
                 200,
                 json={
+                    "data": [{"props": {"id": "tx_1"}}],
+                    "pagination": {"hasMore": True, "nextCursor": "cur_2"},
+                },
+            ),
+            httpx.Response(
+                200,
+                json={
                     "data": [{"props": {"id": "tx_2"}}],
                     "pagination": {"hasMore": False, "nextCursor": None},
                 },
@@ -208,7 +222,7 @@ async def test_credits_history_and_iterate(corvo: Corvo) -> None:
     assert page["data"] == [{"id": "tx_1"}]
     items = await collect(corvo.credits.iterate_history(limit=1))
     assert [item["id"] for item in items] == ["tx_1", "tx_2"]
-    assert "cursor=cur_2" in str(route.calls[1].request.url)
+    assert "cursor=cur_2" in str(route.calls[2].request.url)
 
 
 @respx.mock
