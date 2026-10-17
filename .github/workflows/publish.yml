@@ -1,0 +1,40 @@
+name: Publish to PyPI
+
+# Runs when a version tag is pushed (git tag v0.1.1 && git push origin v0.1.1).
+# Uses PyPI trusted publishing: no token is stored. Register this repository and the
+# workflow file "publish.yml" (environment "pypi") as a trusted publisher on pypi.org first.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: The tag must match the package version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml | cut -d'"' -f2)
+          test "v$VERSION" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME does not match version $VERSION"; exit 1; }
+
+      - name: Test
+        run: |
+          python -m pip install --upgrade pip build
+          python -m pip install -e ".[dev]"
+          python -m pytest
+          python -m mypy src
+
+      - name: Build
+        run: python -m build
+
+      - name: Publish
+        uses: pypa/gh-action-pypi-publish@release/v1
