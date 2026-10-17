@@ -24,10 +24,8 @@ def test_base_url_includes_prefix() -> None:
 
 def test_unwrap_modes() -> None:
     assert unwrap({"data": {"id": "1"}}, "data") == {"id": "1"}
-    assert unwrap({"data": {"props": {"id": "1"}}}, "data+props") == {"id": "1"}
     assert unwrap({"data": None}, "data") is None
     assert unwrap({}, "data") is None
-    assert unwrap({"data": {"props": None}}, "data+props") is None
     body = {"data": [1, 2], "pagination": {"hasMore": False}}
     assert unwrap(body, "none") is body
 
@@ -93,17 +91,6 @@ async def test_envelope_data() -> None:
     data, error = await t.request("GET", "/companies/c_1")
     assert error is None
     assert data == {"id": "c_1"}
-
-
-@respx.mock
-async def test_envelope_data_plus_props() -> None:
-    respx.get(f"{BASE_URL}/v1/invoices/inv_1").mock(
-        return_value=httpx.Response(200, json={"data": {"props": {"id": "inv_1"}}})
-    )
-    t = make_transport()
-    data, error = await t.request("GET", "/invoices/inv_1", unwrap="data+props")
-    assert error is None
-    assert data == {"id": "inv_1"}
 
 
 @respx.mock
@@ -298,18 +285,18 @@ async def test_iterate_raises_on_failure() -> None:
 
 
 @respx.mock
-async def test_list_page_maps_props() -> None:
+async def test_list_page_returns_the_items() -> None:
     respx.get(f"{BASE_URL}/v1/invoices").mock(
         return_value=httpx.Response(
             200,
             json={
-                "data": [{"props": {"id": "inv_1"}}, {"props": {"id": "inv_2"}}],
+                "data": [{"id": "inv_1"}, {"id": "inv_2"}],
                 "pagination": {"hasMore": False},
             },
         )
     )
     t = make_transport()
-    page, error = await t.list_page("/invoices", {}, map_props=True)
+    page, error = await t.list_page("/invoices", {})
     assert error is None
     assert page["data"] == [{"id": "inv_1"}, {"id": "inv_2"}]
 

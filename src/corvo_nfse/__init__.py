@@ -17,6 +17,7 @@ from .types import (
     CreditPlan,
     CreditTransaction,
     Invoice,
+    InvoiceCalculation,
     InvoiceCreateParams,
     InvoiceCustomerInput,
     InvoiceDownloadUrl,
@@ -27,6 +28,8 @@ from .types import (
     InvoiceStatus,
     Paginated,
     Pagination,
+    PlanQuote,
+    PlanRecommendation,
     QuotaStatus,
     TaxRegime,
     Webhook,
@@ -38,7 +41,7 @@ from .types import (
 )
 from .webhooks import CorvoWebhooks
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
 __version__ = VERSION
 
 __all__ = [
@@ -60,6 +63,7 @@ __all__ = [
     "CreditTransaction",
     "DownloadedFile",
     "Invoice",
+    "InvoiceCalculation",
     "InvoiceCreateParams",
     "InvoiceCustomerInput",
     "InvoiceDownloadUrl",
@@ -70,6 +74,8 @@ __all__ = [
     "InvoiceStatus",
     "Paginated",
     "Pagination",
+    "PlanQuote",
+    "PlanRecommendation",
     "Query",
     "QuotaStatus",
     "Result",

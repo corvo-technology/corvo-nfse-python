@@ -19,9 +19,17 @@ from .company import (
     CompanyUpdateParams,
     TaxRegime,
 )
-from .credits import CreditBalance, CreditHistoryParams, CreditPlan, CreditTransaction
+from .credits import (
+    CreditBalance,
+    CreditHistoryParams,
+    CreditPlan,
+    CreditTransaction,
+    PlanQuote,
+    PlanRecommendation,
+)
 from .invoice import (
     Invoice,
+    InvoiceCalculation,
     InvoiceCreateParams,
     InvoiceCustomerInput,
     InvoiceDownloadUrl,
@@ -60,6 +68,7 @@ __all__ = [
     "CreditPlan",
     "CreditTransaction",
     "Invoice",
+    "InvoiceCalculation",
     "InvoiceCreateParams",
     "InvoiceCustomerInput",
     "InvoiceDownloadUrl",
@@ -70,6 +79,8 @@ __all__ = [
     "InvoiceStatus",
     "Paginated",
     "Pagination",
+    "PlanQuote",
+    "PlanRecommendation",
     "QuotaStatus",
     "TaxRegime",
     "Webhook",

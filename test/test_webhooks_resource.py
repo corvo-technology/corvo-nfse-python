@@ -175,12 +175,12 @@ async def test_credits_balance(corvo: Corvo) -> None:
 
 
 @respx.mock
-async def test_credits_plans_unwrap_props(corvo: Corvo) -> None:
+async def test_credits_plans_returns_the_items(corvo: Corvo) -> None:
     respx.get(f"{BASE_URL}/v1/credits/plans").mock(
         return_value=httpx.Response(
             200,
             json={
-                "data": [{"props": {"id": "plan_1", "slug": "pro"}}],
+                "data": [{"id": "plan_1", "slug": "pro"}],
                 "pagination": {"hasMore": False, "nextCursor": None},
             },
         )
@@ -197,21 +197,21 @@ async def test_credits_history_and_iterate(corvo: Corvo) -> None:
             httpx.Response(
                 200,
                 json={
-                    "data": [{"props": {"id": "tx_1"}}],
+                    "data": [{"id": "tx_1"}],
                     "pagination": {"hasMore": True, "nextCursor": "cur_2"},
                 },
             ),
             httpx.Response(
                 200,
                 json={
-                    "data": [{"props": {"id": "tx_1"}}],
+                    "data": [{"id": "tx_1"}],
                     "pagination": {"hasMore": True, "nextCursor": "cur_2"},
                 },
             ),
             httpx.Response(
                 200,
                 json={
-                    "data": [{"props": {"id": "tx_2"}}],
+                    "data": [{"id": "tx_2"}],
                     "pagination": {"hasMore": False, "nextCursor": None},
                 },
             ),

@@ -23,7 +23,7 @@ import httpx
 
 from .error import CorvoApiError, Result
 
-Unwrap = Literal["data", "data+props", "none"]
+Unwrap = Literal["data", "none"]
 Query = Mapping[str, Union[str, int, float, bool, None]]
 
 DEFAULT_BASE_URL = "https://api.corvo.tech"
@@ -68,17 +68,11 @@ def unwrap(value: Any, mode: Unwrap = "data") -> Any:
     """Unwrap a response envelope.
 
     - ``data`` -> ``body.data`` (or ``None`` if missing)
-    - ``data+props`` -> ``body.data.props`` (domain entity wrapper)
     - ``none`` -> the whole body
     """
     if mode == "none":
         return value
-    data = value.get("data") if isinstance(value, dict) else None
-    if mode == "data":
-        return data
-    if isinstance(data, dict):
-        return data.get("props")
-    return None
+    return value.get("data") if isinstance(value, dict) else None
 
 
 class Transport:
@@ -190,8 +184,6 @@ class Transport:
         self,
         path: str,
         query: Optional[Query] = None,
-        *,
-        map_props: bool = False,
     ) -> Result[Dict[str, Any]]:
         """Fetch one list page as ``{ data, pagination }`` (wire pass-through)."""
         raw, error = await self.request("GET", path, query=query, unwrap="none")
@@ -199,19 +191,12 @@ class Transport:
             return (None, error)
         body = raw if isinstance(raw, dict) else {}
         items = body.get("data") or []
-        if map_props:
-            items = [
-                item.get("props") if isinstance(item, dict) and "props" in item else item
-                for item in items
-            ]
         return ({"data": items, "pagination": body.get("pagination")}, None)
 
     async def iterate(
         self,
         path: str,
         query: Optional[Query] = None,
-        *,
-        map_props: bool = False,
     ) -> AsyncIterator[Any]:
         """Walk cursor pages, yielding items.
 
@@ -225,7 +210,7 @@ class Transport:
             page_query = dict(base_query)
             if cursor is not None:
                 page_query["cursor"] = cursor
-            page, error = await self.list_page(path, page_query, map_props=map_props)
+            page, error = await self.list_page(path, page_query)
             if error is not None:
                 raise error
             assert page is not None  # list_page returns (None, error) only on failure.
