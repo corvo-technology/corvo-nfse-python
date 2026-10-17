@@ -14,6 +14,7 @@ from .resources.companies import Companies
 from .resources.credits import Credits
 from .resources.health import Health
 from .resources.invoices import Invoices
+from .resources.plans import Plans
 from .resources.webhooks import Webhooks
 from .transport import DEFAULT_BASE_URL, DEFAULT_PREFIX, DEFAULT_TIMEOUT, Transport, is_private_host
 
@@ -78,6 +79,7 @@ class Corvo:
         self.credits = Credits(self._transport)
         self.health = Health(self._transport)
         self.invoices = Invoices(self._transport)
+        self.plans = Plans(self._transport)
         self.webhooks = Webhooks(self._transport)
 
     @property

@@ -8,6 +8,7 @@ from .companies import Companies
 from .credits import Credits
 from .health import Health
 from .invoices import Invoices
+from .plans import Plans
 from .webhooks import Deliveries, Webhooks
 
 __all__ = [
@@ -18,5 +19,6 @@ __all__ = [
     "Deliveries",
     "Health",
     "Invoices",
+    "Plans",
     "Webhooks",
 ]

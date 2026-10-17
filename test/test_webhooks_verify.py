@@ -46,4 +46,5 @@ def test_missing_or_empty_inputs() -> None:
 def test_webhook_events_constant() -> None:
     assert len(WEBHOOK_EVENTS) == 9
     assert "nfse.invoice.authorized" in WEBHOOK_EVENTS
-    assert "webhook.test" in WEBHOOK_EVENTS
+    assert "nfse.invoice.fiscal_discrepancy" in WEBHOOK_EVENTS
+    assert "webhook.test" not in WEBHOOK_EVENTS

@@ -20,14 +20,14 @@ class Credits:
         self, *, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> Result[Dict[str, Any]]:
         return await self._t.list_page(
-            "/credits/plans", {"limit": limit, "cursor": cursor}, map_props=True
+            "/credits/plans", {"limit": limit, "cursor": cursor}
         )
 
     async def history(
         self, *, limit: Optional[int] = None, cursor: Optional[str] = None
     ) -> Result[Dict[str, Any]]:
         return await self._t.list_page(
-            "/credits/history", {"limit": limit, "cursor": cursor}, map_props=True
+            "/credits/history", {"limit": limit, "cursor": cursor}
         )
 
     def iterate_history(
@@ -38,5 +38,5 @@ class Credits:
         Raises :class:`~corvo_nfse.CorvoApiError` on a page failure.
         """
         return self._t.iterate(
-            "/credits/history", {"limit": limit, "cursor": cursor}, map_props=True
+            "/credits/history", {"limit": limit, "cursor": cursor}
         )

@@ -1,8 +1,8 @@
-"""Invoice wire types (36 verified fields on Invoice)."""
+"""Invoice wire types."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, Literal, Optional, TypedDict
+from typing import Any, Dict, List, Literal, Optional, TypedDict
 
 InvoiceStatus = Literal[
     "queued",
@@ -27,42 +27,50 @@ class InvoiceCustomerAddress(TypedDict, total=False):
 
 
 class _InvoiceCustomerRequired(TypedDict):
-    name: str
     taxId: str
 
 
 class InvoiceCustomerInput(_InvoiceCustomerRequired, total=False):
+    """Required whenever a customer is sent: ``taxId`` (CPF or CNPJ). Omit the customer for none."""
+
+    name: str
     email: str
     address: InvoiceCustomerAddress
 
 
-class _InvoiceServiceRequired(TypedDict):
+class InvoiceServiceInput(TypedDict, total=False):
+    """All optional: ``code`` defaults to the company's, then to ``100901``; the city to the company's."""
+
     code: str
-
-
-class InvoiceServiceInput(_InvoiceServiceRequired, total=False):
     municipalityCode: str
     description: str
 
 
 class InvoiceEmailOptions(TypedDict, total=False):
-    email: Dict[str, bool]
+    send: bool
+
+
+class InvoiceOptions(TypedDict, total=False):
+    email: InvoiceEmailOptions
+    type: Literal["IMMEDIATE", "SCHEDULE"]
 
 
 class _InvoiceCreateRequired(TypedDict):
-    customer: InvoiceCustomerInput
     service: InvoiceServiceInput
     amount: float
     competenceDate: str
 
 
 class InvoiceCreateParams(_InvoiceCreateRequired, total=False):
+    """Identify the company by ``companyId`` or ``companyTaxId``; ``customer`` is optional."""
+
     companyId: str
     companyTaxId: str
     externalId: str
-    correlationId: str
-    email: str
-    options: InvoiceEmailOptions
+    customer: InvoiceCustomerInput
+    discount: float
+    email: bool
+    options: InvoiceOptions
 
 
 class InvoiceCustomerSnapshot(TypedDict, total=False):
@@ -111,9 +119,10 @@ class Invoice(TypedDict):
     lastEmailSentAt: Optional[str]
     createdAt: str
     updatedAt: str
-    documentsStatus: str
-    emailStatus: Optional[str]
+    documentsStatus: Literal["pending", "ready"]
+    emailStatus: Optional[Literal["queued", "sent", "failed"]]
     stage: InvoiceStage
+    scheduledFor: Optional[str]
 
 
 class InvoiceEvent(TypedDict):
@@ -145,3 +154,38 @@ class InvoiceDownloadUrl(TypedDict):
 class InvoiceEmailResult(TypedDict):
     emailId: str
     status: str
+
+
+class CalculatedTaxAmount(TypedDict, total=False):
+    base: str
+    rate: str  # absent on ibsTotal, which sums the state and municipal IBS
+    amount: str
+
+
+class CalculatedTaxes(TypedDict, total=False):
+    iss: CalculatedTaxAmount
+    cbs: CalculatedTaxAmount
+    ibsState: CalculatedTaxAmount
+    ibsCity: CalculatedTaxAmount
+    ibsTotal: CalculatedTaxAmount
+
+
+class InvoiceCalculation(TypedDict):
+    """Pre-emission estimate. ``status`` is ``ready`` or ``blocked``: a fiscal gap is data, not an error."""
+
+    preEmission: Literal[True]
+    status: Literal["ready", "blocked"]
+    disclaimer: str
+    competenceDate: str
+    taxRegime: Optional[str]
+    classification: Dict[str, Any]
+    applicability: Dict[str, Any]
+    taxes: CalculatedTaxes
+    withholdings: List[Dict[str, Any]]
+    netReceivableAmount: Optional[str]
+    collectionWaived: Optional[bool]
+    calculation: Dict[str, Any]
+    warnings: List[Dict[str, Any]]
+    pendingFields: List[Dict[str, str]]
+    blocking: Optional[Dict[str, str]]
+    trace: List[Dict[str, Any]]

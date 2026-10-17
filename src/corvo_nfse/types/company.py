@@ -8,6 +8,8 @@ TaxRegime = Literal["MEI", "Simples Nacional", "Lucro Presumido", "Lucro Real"]
 
 
 class CompanyAddressInput(TypedDict, total=False):
+    """All optional. ``state`` is the two-letter UF; ``zip`` has 8 digits."""
+
     street: str
     number: str
     complement: str
@@ -19,14 +21,16 @@ class CompanyAddressInput(TypedDict, total=False):
 
 class _CompanyCreateRequired(TypedDict):
     legalName: str
-    taxId: str
+    taxId: str  # CNPJ
     taxRegime: TaxRegime
+    municipalityCode: str  # IBGE code of the company's city, 7 digits
 
 
 class CompanyCreateParams(_CompanyCreateRequired, total=False):
     tradeName: str
-    municipalReg: str
-    municipalityCode: str
+    municipalReg: str  # stored; only sent on the invoice when sendMunicipalReg is True
+    sendMunicipalReg: bool  # default False: only if the city registered the company nationally
+    defaultServiceCode: str  # national service code (6 digits) used when an invoice omits service.code
     simpleNational: bool
     specialRegime: str
     address: CompanyAddressInput
@@ -36,38 +40,47 @@ class CompanyUpdateParams(TypedDict, total=False):
     legalName: str
     tradeName: str
     municipalReg: Optional[str]
+    sendMunicipalReg: bool
     municipalityCode: str
+    defaultServiceCode: Optional[str]
     taxRegime: TaxRegime
     simpleNational: bool
     specialRegime: str
     address: Optional[CompanyAddressInput]
 
 
-class Company(TypedDict):
+class _CompanyRequired(TypedDict):
     id: str
     tenantId: str
     legalName: str
-    tradeName: Optional[str]
     taxId: str
-    municipalReg: Optional[str]
-    municipalityCode: Optional[str]
-    taxRegime: TaxRegime
+    taxRegime: Optional[TaxRegime]
     simpleNational: bool
     specialRegime: Optional[str]
-    addressStreet: Optional[str]
-    addressNumber: Optional[str]
-    addressComplement: Optional[str]
-    addressDistrict: Optional[str]
+    fiscalSchemaVersion: str
+    environment: Literal["test", "live"]
+    status: Literal["pending_setup", "ready", "blocked"]
+    createdAt: str
+    updatedAt: str
+    setupGaps: List[str]  # pending setup: "municipality_code", "certificate"
+
+
+class Company(_CompanyRequired, total=False):
+    """Optional fields are absent from the JSON when they have no value."""
+
+    tradeName: str
+    municipalReg: str
+    sendMunicipalReg: bool
+    municipalityCode: str
+    defaultServiceCode: str
+    addressStreet: str
+    addressNumber: str
+    addressComplement: str
+    addressDistrict: str
     addressCity: str
     addressState: str
     addressZip: str
-    fiscalSchemaVersion: str
-    environment: Literal["test", "live"]
-    status: str
-    createdAt: str
-    updatedAt: str
-    deletedAt: Optional[str]
-    setupGaps: List[str]
+    deletedAt: str
 
 
 class CompanyListParams(TypedDict, total=False):

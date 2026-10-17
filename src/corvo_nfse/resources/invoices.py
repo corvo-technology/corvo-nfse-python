@@ -1,4 +1,4 @@
-"""Invoices resource — create, get, list, iterate, events, pdf, xml, download_url, send_email."""
+"""Invoices resource: create, calculate, get, list, iterate, events, pdf, xml, download_url, send_email."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ from ..error import Result
 from ..transport import DownloadedFile, Transport
 from ..types.invoice import (
     Invoice,
+    InvoiceCalculation,
     InvoiceCreateParams,
     InvoiceDownloadUrl,
     InvoiceEmailResult,
@@ -27,11 +28,18 @@ class Invoices:
         idempotency_key: Optional[str] = None,
     ) -> Result[Invoice]:
         return await self._t.request(
-            "POST", "/invoices", json=params, idempotency_key=idempotency_key, unwrap="data+props"
+            "POST", "/invoices", json=params, idempotency_key=idempotency_key
         )
 
+    async def calculate(self, params: InvoiceCreateParams) -> Result[InvoiceCalculation]:
+        """Estimate the taxes of an invoice without issuing, storing or charging anything.
+
+        A fiscal gap is not an error: the result has ``status == "blocked"``.
+        """
+        return await self._t.request("POST", "/invoices/calculate", json=params)
+
     async def get(self, invoice_id: str) -> Result[Invoice]:
-        return await self._t.request("GET", f"/invoices/{invoice_id}", unwrap="data+props")
+        return await self._t.request("GET", f"/invoices/{invoice_id}")
 
     async def list(
         self,
@@ -55,7 +63,6 @@ class Invoices:
                 limit=limit,
                 cursor=cursor,
             ),
-            map_props=True,
         )
 
     def iterate(
@@ -84,7 +91,6 @@ class Invoices:
                 limit=limit,
                 cursor=cursor,
             ),
-            map_props=True,
         )
 
     async def events(
@@ -97,7 +103,6 @@ class Invoices:
         return await self._t.list_page(
             f"/invoices/{invoice_id}/events",
             {"limit": limit, "cursor": cursor},
-            map_props=True,
         )
 
     async def pdf(self, invoice_id: str) -> Result[DownloadedFile]:
