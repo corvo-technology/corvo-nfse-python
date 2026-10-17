@@ -1,4 +1,4 @@
-"""Invoices resource tests: props unwrap, idempotency, pagination, binaries."""
+"""Invoices resource tests: flat resources, idempotency, pagination, binaries."""
 
 from __future__ import annotations
 
@@ -50,9 +50,9 @@ INVOICE_PROPS = {
 
 
 @respx.mock
-async def test_create_unwraps_props_and_sends_idempotency_key(corvo: Corvo) -> None:
+async def test_create_sends_idempotency_key_and_returns_the_invoice(corvo: Corvo) -> None:
     route = respx.post(f"{BASE_URL}/v1/invoices").mock(
-        return_value=httpx.Response(201, json={"data": {"props": INVOICE_PROPS}})
+        return_value=httpx.Response(201, json={"data": INVOICE_PROPS})
     )
     data, error = await corvo.invoices.create(
         {
@@ -65,7 +65,7 @@ async def test_create_unwraps_props_and_sends_idempotency_key(corvo: Corvo) -> N
         idempotency_key="order-42",
     )
     assert error is None
-    # props unwrapped: the consumer sees the entity directly, no "props" key.
+    # The resource comes straight in `data`.
     assert data["id"] == "inv_1"
     assert "props" not in data
     request = route.calls[0].request
@@ -74,9 +74,9 @@ async def test_create_unwraps_props_and_sends_idempotency_key(corvo: Corvo) -> N
 
 
 @respx.mock
-async def test_get_unwraps_props(corvo: Corvo) -> None:
+async def test_get_returns_the_invoice(corvo: Corvo) -> None:
     respx.get(f"{BASE_URL}/v1/invoices/inv_1").mock(
-        return_value=httpx.Response(200, json={"data": {"props": INVOICE_PROPS}})
+        return_value=httpx.Response(200, json={"data": INVOICE_PROPS})
     )
     data, error = await corvo.invoices.get("inv_1")
     assert error is None
@@ -84,12 +84,12 @@ async def test_get_unwraps_props(corvo: Corvo) -> None:
 
 
 @respx.mock
-async def test_list_maps_props_per_item(corvo: Corvo) -> None:
+async def test_list_returns_the_items(corvo: Corvo) -> None:
     route = respx.get(f"{BASE_URL}/v1/invoices").mock(
         return_value=httpx.Response(
             200,
             json={
-                "data": [{"props": INVOICE_PROPS}],
+                "data": [INVOICE_PROPS],
                 "pagination": {"limit": 1, "hasMore": False, "nextCursor": None},
             },
         )
@@ -122,14 +122,14 @@ async def test_iterate_walks_pages(corvo: Corvo) -> None:
             httpx.Response(
                 200,
                 json={
-                    "data": [{"props": INVOICE_PROPS}],
+                    "data": [INVOICE_PROPS],
                     "pagination": {"hasMore": True, "nextCursor": "cur_2"},
                 },
             ),
             httpx.Response(
                 200,
                 json={
-                    "data": [{"props": {**INVOICE_PROPS, "id": "inv_2"}}],
+                    "data": [{**INVOICE_PROPS, "id": "inv_2"}],
                     "pagination": {"hasMore": False, "nextCursor": None},
                 },
             ),
@@ -148,7 +148,6 @@ async def test_events(corvo: Corvo) -> None:
             json={
                 "data": [
                     {
-                        "props": {
                             "id": "evt_1",
                             "invoiceId": "inv_1",
                             "fromStatus": "queued",
@@ -156,7 +155,6 @@ async def test_events(corvo: Corvo) -> None:
                             "reason": None,
                             "createdAt": "2026-10-12T00:00:00Z",
                         }
-                    }
                 ],
                 "pagination": {"hasMore": False, "nextCursor": None},
             },

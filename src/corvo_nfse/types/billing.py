@@ -6,7 +6,7 @@ place the API mixes casing) — pass-through, no re-casing.
 
 from __future__ import annotations
 
-from typing import Optional, TypedDict
+from typing import Literal, Optional, TypedDict
 
 
 class BillingPlanSection(TypedDict):
@@ -48,7 +48,7 @@ class BillingPlanResponse(TypedDict):
     usage: BillingUsageSection
 
 
-class QuotaStatus(TypedDict):
+class _QuotaStatusRequired(TypedDict):
     canEmit: bool
     creditsRemaining: float
     creditsUsed: float
@@ -60,3 +60,8 @@ class QuotaStatus(TypedDict):
     maxActiveCompanies: int
     periodStart: Optional[str]
     periodEnd: Optional[str]
+
+
+class QuotaStatus(_QuotaStatusRequired, total=False):
+    # Set when canEmit is False.
+    reason: Literal["no_credits", "daily_limit_exceeded", "company_limit_exceeded", "plan_blocked"]

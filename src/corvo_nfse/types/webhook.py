@@ -1,4 +1,7 @@
-"""Webhook wire types and the 9 supported event names."""
+"""Webhook wire types and the 9 event names you can subscribe to.
+
+``webhook.test`` is only sent by ``webhooks.test()`` and cannot be subscribed.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ WEBHOOK_EVENTS = (
     "nfse.invoice.documents_ready",
     "nfse.invoice.email_sent",
     "nfse.invoice.email_failed",
-    "webhook.test",
+    "nfse.invoice.fiscal_discrepancy",
 )
 
 WebhookEvent = str
