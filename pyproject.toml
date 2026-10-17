@@ -26,7 +26,7 @@ dependencies = ["httpx>=0.27"]
 
 [project.urls]
 Homepage = "https://github.com/corvo-technology/corvo-nfse-python"
-Documentation = "https://corvo.tech/en/api-docs"
+Documentation = "https://corvo.tech/en/docs"
 Issues = "https://github.com/corvo-technology/corvo-nfse-python/issues"
 Repository = "https://github.com/corvo-technology/corvo-nfse-python"
 
