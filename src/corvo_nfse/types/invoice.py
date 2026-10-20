@@ -13,7 +13,12 @@ InvoiceStatus = Literal[
     "reconciliation_required",
     "manual_review",
     "failed",
+    "cancelling",
+    "cancelled",
 ]
+
+#: Why an invoice is being cancelled: sent to ``invoices.cancel()`` and echoed as ``cancellationReason``.
+InvoiceCancellationReason = Literal["issue_error", "service_not_provided", "other"]
 
 InvoiceStage = Literal["pending", "authorized", "documents_ready", "completed", "failed"]
 
@@ -123,6 +128,20 @@ class Invoice(TypedDict):
     emailStatus: Optional[Literal["queued", "sent", "failed"]]
     stage: InvoiceStage
     scheduledFor: Optional[str]
+    cancellationReason: Optional[InvoiceCancellationReason]
+    cancellationDescription: Optional[str]
+    cancelledAt: Optional[str]
+    cancellationRequestedAt: Optional[str]
+
+
+class _InvoiceCancelRequired(TypedDict):
+    reason: InvoiceCancellationReason
+
+
+class InvoiceCancelParams(_InvoiceCancelRequired, total=False):
+    """Body of ``POST /invoices/{id}/cancel``. ``description``: at most 255 characters."""
+
+    description: str
 
 
 class InvoiceEvent(TypedDict):
