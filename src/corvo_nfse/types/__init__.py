@@ -30,6 +30,8 @@ from .credits import (
 from .invoice import (
     Invoice,
     InvoiceCalculation,
+    InvoiceCancelParams,
+    InvoiceCancellationReason,
     InvoiceCreateParams,
     InvoiceCustomerInput,
     InvoiceDownloadUrl,
@@ -69,6 +71,8 @@ __all__ = [
     "CreditTransaction",
     "Invoice",
     "InvoiceCalculation",
+    "InvoiceCancelParams",
+    "InvoiceCancellationReason",
     "InvoiceCreateParams",
     "InvoiceCustomerInput",
     "InvoiceDownloadUrl",

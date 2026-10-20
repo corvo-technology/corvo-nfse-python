@@ -234,3 +234,151 @@ async def test_send_email_with_idempotency_key(corvo: Corvo) -> None:
     assert error is None
     assert data["status"] == "queued"
     assert route.calls[0].request.headers["Idempotency-Key"] == "mail-1"
+
+
+CANCELLED_INVOICE = {
+    **INVOICE_PROPS,
+    "status": "cancelled",
+    "cancellationReason": "issue_error",
+    "cancellationDescription": "Wrong amount on the invoice",
+    "cancelledAt": "2026-10-13T10:00:00Z",
+    "cancellationRequestedAt": "2026-10-13T09:59:00Z",
+}
+
+CANCELLING_INVOICE = {
+    **INVOICE_PROPS,
+    "status": "cancelling",
+    "cancellationReason": "service_not_provided",
+    "cancellationDescription": "The service was never provided",
+    "cancelledAt": None,
+    "cancellationRequestedAt": "2026-10-13T09:59:00Z",
+}
+
+
+@respx.mock
+async def test_cancel_sends_reason_and_description_and_returns_cancelled_invoice(
+    corvo: Corvo,
+) -> None:
+    route = respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(200, json={"data": CANCELLED_INVOICE})
+    )
+    data, error = await corvo.invoices.cancel(
+        "inv_1", reason="issue_error", description="Wrong amount on the invoice"
+    )
+    assert error is None
+    assert data["status"] == "cancelled"
+    assert data["cancelledAt"] == "2026-10-13T10:00:00Z"
+    assert data["cancellationReason"] == "issue_error"
+    request = route.calls[0].request
+    assert request.method == "POST"
+    assert json.loads(request.content) == {
+        "reason": "issue_error",
+        "description": "Wrong amount on the invoice",
+    }
+
+
+@respx.mock
+async def test_cancel_omits_description_when_not_given(corvo: Corvo) -> None:
+    route = respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(200, json={"data": CANCELLED_INVOICE})
+    )
+    _, error = await corvo.invoices.cancel("inv_1", reason="other")
+    assert error is None
+    assert json.loads(route.calls[0].request.content) == {"reason": "other"}
+
+
+@respx.mock
+async def test_cancel_202_returns_cancelling_invoice(corvo: Corvo) -> None:
+    respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(202, json={"data": CANCELLING_INVOICE})
+    )
+    data, error = await corvo.invoices.cancel(
+        "inv_1",
+        reason="service_not_provided",
+        description="The service was never provided",
+    )
+    assert error is None
+    assert data["status"] == "cancelling"
+    assert data["cancelledAt"] is None
+    assert data["cancellationRequestedAt"] == "2026-10-13T09:59:00Z"
+
+
+@respx.mock
+async def test_cancel_409_returns_not_cancellable_error(corvo: Corvo) -> None:
+    respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(
+            409,
+            json={
+                "code": "ERROR_INVOICE_NOT_CANCELLABLE",
+                "message": "Invoice cannot be cancelled in status manual_review",
+            },
+        )
+    )
+    data, error = await corvo.invoices.cancel("inv_1", reason="other")
+    assert data is None
+    assert error is not None
+    assert error.status == 409
+    assert error.code == "ERROR_INVOICE_NOT_CANCELLABLE"
+
+
+@respx.mock
+async def test_cancel_422_returns_validation_error(corvo: Corvo) -> None:
+    respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(
+            422, json={"code": "ERROR_VALIDATION", "message": "description is too short"}
+        )
+    )
+    data, error = await corvo.invoices.cancel(
+        "inv_1", reason="issue_error", description="short"
+    )
+    assert data is None
+    assert error is not None
+    assert error.status == 422
+    assert error.code == "ERROR_VALIDATION"
+
+
+@respx.mock
+async def test_get_parses_a_cancelled_invoice(corvo: Corvo) -> None:
+    respx.get(f"{BASE_URL}/v1/invoices/inv_1").mock(
+        return_value=httpx.Response(200, json={"data": CANCELLED_INVOICE})
+    )
+    data, error = await corvo.invoices.get("inv_1")
+    assert error is None
+    assert data["status"] == "cancelled"
+    assert data["cancellationReason"] == "issue_error"
+    assert data["cancellationDescription"] == "Wrong amount on the invoice"
+    assert data["cancelledAt"] == "2026-10-13T10:00:00Z"
+    assert data["cancellationRequestedAt"] == "2026-10-13T09:59:00Z"
+
+
+@respx.mock
+async def test_get_parses_a_cancelling_invoice(corvo: Corvo) -> None:
+    respx.get(f"{BASE_URL}/v1/invoices/inv_1").mock(
+        return_value=httpx.Response(200, json={"data": CANCELLING_INVOICE})
+    )
+    data, error = await corvo.invoices.get("inv_1")
+    assert error is None
+    assert data["status"] == "cancelling"
+    assert data["cancellationReason"] == "service_not_provided"
+    assert data["cancelledAt"] is None
+
+
+def test_invoice_types_include_cancellation() -> None:
+    from typing import get_args
+
+    from corvo_nfse import Invoice, InvoiceCancellationReason, InvoiceStatus
+
+    assert "cancelling" in get_args(InvoiceStatus)
+    assert "cancelled" in get_args(InvoiceStatus)
+    assert set(get_args(InvoiceCancellationReason)) == {
+        "issue_error",
+        "service_not_provided",
+        "other",
+    }
+    for field in (
+        "cancellationReason",
+        "cancellationDescription",
+        "cancelledAt",
+        "cancellationRequestedAt",
+    ):
+        assert field in Invoice.__annotations__

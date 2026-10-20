@@ -141,6 +141,43 @@ if pdf is not None:
         fh.write(pdf.content)  # also pdf.mime_type and pdf.file_name
 ```
 
+## Cancel an invoice
+
+`reason` is one of `"issue_error"`, `"service_not_provided"` or `"other"` (`InvoiceCancellationReason`). `description` (up to 255 characters) is optional for a `queued` invoice; for an `authorized` or `processing` invoice the API requires 15 to 255 characters and answers `422` otherwise.
+
+```python
+invoice, error = await corvo.invoices.cancel(
+    invoice_id,
+    reason="issue_error",
+    description="Wrong amount on the invoice",
+)
+if error is not None:
+    # 409 ERROR_INVOICE_NOT_CANCELLABLE: retry_pending, reconciliation_required or manual_review
+    print(error.code, error.status)
+```
+
+The returned invoice tells you where the cancellation stands:
+
+- `queued` invoices are cancelled right away: `status == "cancelled"` and `cancelledAt` is set.
+- `authorized` invoices go to `status == "cancelling"` while the Sefin processes the cancellation event. Cancelling an issued NFS-e does not refund the credit.
+- `processing` invoices stay `processing` with `cancellationRequestedAt` set, and are cancelled once issued.
+
+Repeating the request returns the current state. Check the result later with `get()`:
+
+```python
+invoice, error = await corvo.invoices.get(invoice_id)
+if invoice is not None:
+    if invoice["status"] == "cancelled":
+        print("cancelled at", invoice["cancelledAt"], invoice["cancellationReason"])
+    elif invoice["status"] == "cancelling":
+        print("still processing at the Sefin")
+    elif invoice["status"] == "authorized" and invoice["lastErrorCode"]:
+        # The Sefin rejected the cancellation.
+        print(invoice["lastErrorCode"], invoice["lastErrorMessage"])
+```
+
+The `nfse.invoice.cancelled` and `nfse.invoice.cancellation_rejected` webhook events report the outcome too.
+
 ## Verify webhook signatures
 
 ```python
@@ -163,7 +200,7 @@ Webhook events you can subscribe to are exported as `corvo_nfse.WEBHOOK_EVENTS`.
 | --- | --- |
 | `corvo.companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `corvo.certificates` | `upload`, `list`, `remove` |
-| `corvo.invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email` |
+| `corvo.invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email`, `cancel` |
 | `corvo.webhooks` | `create`, `remove`, `test`, `list`, `iterate`, `.deliveries.list`, `.deliveries.iterate`, `.deliveries.stats`, `.deliveries.retry` |
 | `corvo.credits` | `balance`, `plans`, `history`, `iterate_history` |
 | `corvo.billing` | `plan`, `usage` |

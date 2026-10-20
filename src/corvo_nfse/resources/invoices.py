@@ -1,4 +1,4 @@
-"""Invoices resource: create, calculate, get, list, iterate, events, pdf, xml, download_url, send_email."""
+"""Invoices resource: create, calculate, get, list, iterate, events, pdf, xml, download_url, send_email, cancel."""
 
 from __future__ import annotations
 
@@ -9,6 +9,8 @@ from ..transport import DownloadedFile, Transport
 from ..types.invoice import (
     Invoice,
     InvoiceCalculation,
+    InvoiceCancellationReason,
+    InvoiceCancelParams,
     InvoiceCreateParams,
     InvoiceDownloadUrl,
     InvoiceEmailResult,
@@ -124,6 +126,33 @@ class Invoices:
         return await self._t.request(
             "POST", f"/invoices/{invoice_id}/email", idempotency_key=idempotency_key
         )
+
+    async def cancel(
+        self,
+        invoice_id: str,
+        *,
+        reason: InvoiceCancellationReason,
+        description: Optional[str] = None,
+    ) -> Result[Invoice]:
+        """Cancel an invoice and return it in its new state.
+
+        ``reason`` is ``"issue_error"``, ``"service_not_provided"`` or ``"other"``.
+        ``description`` (at most 255 characters) is optional for a ``queued`` invoice;
+        the API requires 15 to 255 characters for ``authorized`` and ``processing``
+        invoices and answers ``422`` otherwise.
+
+        The returned invoice is ``cancelled`` (a queued invoice, cancelled locally),
+        ``cancelling`` (the Sefin is processing the cancellation) or still
+        ``processing`` with ``cancellationRequestedAt`` set (cancelled once issued).
+        Follow it with :meth:`get`: ``cancelled`` means done; back to ``authorized``
+        with ``lastErrorCode``/``lastErrorMessage`` means the Sefin rejected it.
+        ``retry_pending``, ``reconciliation_required`` and ``manual_review`` invoices
+        return a ``409`` error with code ``ERROR_INVOICE_NOT_CANCELLABLE``.
+        """
+        body: InvoiceCancelParams = {"reason": reason}
+        if description is not None:
+            body["description"] = description
+        return await self._t.request("POST", f"/invoices/{invoice_id}/cancel", json=body)
 
     @staticmethod
     def _list_query(
