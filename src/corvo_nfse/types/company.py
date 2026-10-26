@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import List, Literal, Optional, TypedDict
 
-TaxRegime = Literal["MEI", "Simples Nacional", "Lucro Presumido", "Lucro Real"]
+# Corvo serves only these two regimes; any other value returns 422 ERROR_TAX_REGIME_NOT_SUPPORTED.
+TaxRegime = Literal["MEI", "Simples Nacional"]
 
 
 class CompanyAddressInput(TypedDict, total=False):
@@ -33,6 +34,8 @@ class CompanyCreateParams(_CompanyCreateRequired, total=False):
     defaultServiceCode: str  # national service code (6 digits) used when an invoice omits service.code
     simpleNational: bool
     specialRegime: str
+    simplesRate: str  # required for Simples Nacional, ignored for MEI: effective DAS rate (%), e.g. "6.54"
+    simplesIssRate: str  # Simples Nacional only: effective ISS rate (%) of the bracket (1.80 to 5.00)
     address: CompanyAddressInput
 
 
@@ -46,6 +49,8 @@ class CompanyUpdateParams(TypedDict, total=False):
     taxRegime: TaxRegime
     simpleNational: bool
     specialRegime: str
+    simplesRate: str  # omit to keep the current value; ignored for MEI
+    simplesIssRate: Optional[str]  # None removes it
     address: Optional[CompanyAddressInput]
 
 
