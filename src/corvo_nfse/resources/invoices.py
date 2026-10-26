@@ -1,14 +1,17 @@
-"""Invoices resource: create, calculate, get, list, iterate, events, pdf, xml, download_url, send_email."""
+"""Invoices resource: create, create_batch, calculate, get, list, iterate, events, pdf, xml, download_url, send_email, cancel."""
 
 from __future__ import annotations
 
-from typing import Any, AsyncIterator, Dict, Literal, Optional
+from typing import Any, AsyncIterator, Dict, List, Literal, Optional
 
 from ..error import Result
 from ..transport import DownloadedFile, Transport
 from ..types.invoice import (
     Invoice,
+    InvoiceBatchItem,
+    InvoiceBatchSummary,
     InvoiceCalculation,
+    InvoiceCancelParams,
     InvoiceCreateParams,
     InvoiceDownloadUrl,
     InvoiceEmailResult,
@@ -30,6 +33,16 @@ class Invoices:
         return await self._t.request(
             "POST", "/invoices", json=params, idempotency_key=idempotency_key
         )
+
+    async def create_batch(self, invoices: List[InvoiceBatchItem]) -> Result[InvoiceBatchSummary]:
+        """Issue 1 to 50 invoices in one call, for one company or several.
+
+        Items are checked one by one: valid ones are saved together, invalid ones come back
+        ``rejected`` and are not saved. Match ``results[i]["index"]`` to the item you sent, fix only
+        the rejected ones and send them again. Send an ``idempotencyKey`` per item: the
+        ``Idempotency-Key`` header is not used by this route.
+        """
+        return await self._t.request("POST", "/invoices/batches", json={"invoices": invoices})
 
     async def calculate(self, params: InvoiceCreateParams) -> Result[InvoiceCalculation]:
         """Estimate the taxes of an invoice without issuing, storing or charging anything.
@@ -124,6 +137,16 @@ class Invoices:
         return await self._t.request(
             "POST", f"/invoices/{invoice_id}/email", idempotency_key=idempotency_key
         )
+
+    async def cancel(self, invoice_id: str, params: InvoiceCancelParams) -> Result[Invoice]:
+        """Cancel an invoice.
+
+        A queued invoice is cancelled at once (``status == "cancelled"``); an authorized one moves to
+        ``cancelling`` while the cancellation is processed, and a processing one stays ``processing``
+        with ``cancellationRequestedAt`` set. Call :meth:`get` later: ``cancelled`` when done, or back
+        to ``authorized`` with ``lastErrorCode`` when the cancellation was rejected.
+        """
+        return await self._t.request("POST", f"/invoices/{invoice_id}/cancel", json=params)
 
     @staticmethod
     def _list_query(

@@ -1,4 +1,4 @@
-"""Webhook wire types and the 9 event names you can subscribe to.
+"""Webhook wire types and the 11 event names you can subscribe to.
 
 ``webhook.test`` is only sent by ``webhooks.test()`` and cannot be subscribed.
 """
@@ -17,6 +17,8 @@ WEBHOOK_EVENTS = (
     "nfse.invoice.email_sent",
     "nfse.invoice.email_failed",
     "nfse.invoice.fiscal_discrepancy",
+    "nfse.invoice.cancelled",
+    "nfse.invoice.cancellation_rejected",
 )
 
 WebhookEvent = str

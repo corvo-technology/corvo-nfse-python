@@ -13,7 +13,13 @@ InvoiceStatus = Literal[
     "reconciliation_required",
     "manual_review",
     "failed",
+    "cancelling",
+    "cancelled",
 ]
+
+InvoiceCancellationReason = Literal["issue_error", "service_not_provided", "other"]
+
+INVOICE_CANCELLATION_REASONS = ("issue_error", "service_not_provided", "other")
 
 InvoiceStage = Literal["pending", "authorized", "documents_ready", "completed", "failed"]
 
@@ -68,9 +74,26 @@ class InvoiceCreateParams(_InvoiceCreateRequired, total=False):
     companyTaxId: str
     externalId: str
     customer: InvoiceCustomerInput
-    discount: float
+    discount: float  # unconditional discount in BRL, from 0 up to amount
+    deduction: float  # ISS base deduction declared by the issuer: > 0 and < amount - discount
     email: bool
     options: InvoiceOptions
+
+
+class _InvoiceCancelRequired(TypedDict):
+    reason: InvoiceCancellationReason
+
+
+class InvoiceCancelParams(_InvoiceCancelRequired, total=False):
+    """``description`` (15 to 255 characters) is required to cancel an authorized or processing invoice."""
+
+    description: str
+
+
+class InvoiceBatchItem(InvoiceCreateParams, total=False):
+    """One item of ``invoices.create_batch``: the fields of ``InvoiceCreateParams`` plus its own key."""
+
+    idempotencyKey: str  # up to 255 characters; the Idempotency-Key header is not used by the batch route
 
 
 class InvoiceCustomerSnapshot(TypedDict, total=False):
@@ -86,7 +109,12 @@ class InvoiceServiceSnapshot(TypedDict, total=False):
     municipalityCode: str
 
 
-class Invoice(TypedDict):
+class _InvoiceOptional(TypedDict, total=False):
+    discount: float  # present when a discount was declared
+    deduction: float  # present when an ISS base deduction was declared
+
+
+class Invoice(_InvoiceOptional):
     id: str
     companyId: str
     tenantId: str
@@ -123,6 +151,33 @@ class Invoice(TypedDict):
     emailStatus: Optional[Literal["queued", "sent", "failed"]]
     stage: InvoiceStage
     scheduledFor: Optional[str]
+    cancellationReason: Optional[InvoiceCancellationReason]
+    cancellationDescription: Optional[str]
+    cancelledAt: Optional[str]
+    cancellationRequestedAt: Optional[str]
+
+
+class InvoiceBatchError(TypedDict, total=False):
+    code: str
+    message: str
+    details: Any
+
+
+class InvoiceBatchResult(TypedDict, total=False):
+    """``status`` is ``accepted`` (``invoice`` set) or ``rejected`` (``error`` set, item not saved)."""
+
+    index: int  # position of the item in the request, starting at 0
+    status: Literal["accepted", "rejected"]
+    replayed: Literal[True]  # the item repeated an idempotencyKey already saved with the same content
+    invoice: Invoice
+    error: InvoiceBatchError
+
+
+class InvoiceBatchSummary(TypedDict):
+    total: int
+    accepted: int
+    rejected: int
+    results: List[InvoiceBatchResult]  # one entry per item, in the order sent
 
 
 class InvoiceEvent(TypedDict):

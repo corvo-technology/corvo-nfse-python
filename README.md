@@ -72,7 +72,8 @@ company, error = await corvo.companies.create(
     {
         "legalName": "Empresa Exemplo Ltda",
         "taxId": "11222333000181",
-        "taxRegime": "Simples Nacional",  # "MEI" | "Simples Nacional" | "Lucro Presumido" | "Lucro Real"
+        "taxRegime": "Simples Nacional",  # "MEI" | "Simples Nacional" (the only regimes Corvo serves)
+        "simplesRate": "6.54",  # required for Simples Nacional: effective DAS rate (%), ignored for MEI
         "municipalityCode": "3550308",  # IBGE code, 7 digits
         "defaultServiceCode": "010101",  # optional: used when an invoice omits service.code
     }
@@ -123,6 +124,43 @@ invoice, error = await corvo.invoices.create(
 
 Use `"options": {"type": "SCHEDULE"}` with a future `competenceDate` to schedule the issuance. Request bodies and responses are wire pass-through: camelCase stays camelCase.
 
+To declare a deduction from the ISS base, send `"deduction"` (greater than 0 and less than `amount` minus `discount`). The invoice is still issued for the full `amount`, and you are responsible for the declared value.
+
+## Issue up to 50 invoices at once
+
+`create_batch` takes 1 to 50 items (they can belong to different companies). Items are checked one by one: valid ones are saved together, invalid ones come back `rejected` and are not saved. Send an `idempotencyKey` per item, so repeating the batch after a timeout returns the saved ones with `replayed`.
+
+```python
+batch, error = await corvo.invoices.create_batch(
+    [
+        {"companyTaxId": "11222333000181", "idempotencyKey": "sheet-row-2",
+         "service": {"description": "Consultoria"}, "amount": 150.5, "competenceDate": "2026-10-16"},
+        {"companyTaxId": "11222333000181", "idempotencyKey": "sheet-row-3",
+         "service": {"description": "Manutenção"}, "amount": 300, "competenceDate": "2026-10-16"},
+    ]
+)
+for result in batch["results"] if batch else []:
+    if result["status"] == "rejected":
+        print(result["index"], result["error"]["code"], result["error"]["message"])
+```
+
+The route allows 10 batches per minute per tenant (`429` with `Retry-After`).
+
+## Cancel an invoice
+
+```python
+invoice, error = await corvo.invoices.cancel(
+    invoice_id,
+    {"reason": "issue_error", "description": "Wrong amount on the invoice"},  # reason: issue_error | service_not_provided | other
+)
+```
+
+- `queued`: cancelled at once, `status == "cancelled"` with `cancelledAt` set.
+- `authorized`: `status == "cancelling"` while the cancellation is processed at the Sefin. The issuance credit is not refunded.
+- `processing`: stays `processing` with `cancellationRequestedAt` set and is cancelled once authorized.
+
+`description` (15 to 255 characters) is required for an authorized or processing invoice and optional for a queued one. Read the invoice again (or listen to the `nfse.invoice.cancelled` and `nfse.invoice.cancellation_rejected` webhooks) to see the outcome: `cancelled`, or back to `authorized` with `lastErrorCode` when the cancellation was rejected.
+
 ## Walk every page
 
 ```python
@@ -163,7 +201,7 @@ Webhook events you can subscribe to are exported as `corvo_nfse.WEBHOOK_EVENTS`.
 | --- | --- |
 | `corvo.companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `corvo.certificates` | `upload`, `list`, `remove` |
-| `corvo.invoices` | `create`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email` |
+| `corvo.invoices` | `create`, `create_batch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email`, `cancel` |
 | `corvo.webhooks` | `create`, `remove`, `test`, `list`, `iterate`, `.deliveries.list`, `.deliveries.iterate`, `.deliveries.stats`, `.deliveries.retry` |
 | `corvo.credits` | `balance`, `plans`, `history`, `iterate_history` |
 | `corvo.billing` | `plan`, `usage` |

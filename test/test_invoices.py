@@ -234,3 +234,78 @@ async def test_send_email_with_idempotency_key(corvo: Corvo) -> None:
     assert error is None
     assert data["status"] == "queued"
     assert route.calls[0].request.headers["Idempotency-Key"] == "mail-1"
+
+
+@respx.mock
+async def test_create_batch_posts_the_items_without_an_idempotency_key_header(corvo: Corvo) -> None:
+    summary = {
+        "total": 2,
+        "accepted": 1,
+        "rejected": 1,
+        "results": [
+            {"index": 0, "status": "accepted", "replayed": True, "invoice": {**INVOICE_PROPS, "deduction": 20}},
+            {
+                "index": 1,
+                "status": "rejected",
+                "error": {"code": "ERROR_VALIDATION", "message": "Request validation failed"},
+            },
+        ],
+    }
+    route = respx.post(f"{BASE_URL}/v1/invoices/batches").mock(
+        return_value=httpx.Response(202, json={"data": summary})
+    )
+    data, error = await corvo.invoices.create_batch(
+        [
+            {
+                "companyTaxId": "11222333000181",
+                "idempotencyKey": "sheet-row-2",
+                "service": {"description": "Consultoria"},
+                "amount": 150.5,
+                "deduction": 20,
+                "competenceDate": "2026-10-01",
+            }
+        ]
+    )
+    assert error is None
+    assert data is not None
+    assert data["results"][0]["replayed"] is True
+    assert data["results"][0]["invoice"]["deduction"] == 20
+    assert data["results"][1]["error"]["code"] == "ERROR_VALIDATION"
+    request = route.calls.last.request
+    assert "idempotency-key" not in request.headers
+    body = json.loads(request.content)
+    assert body["invoices"][0]["idempotencyKey"] == "sheet-row-2"
+    assert body["invoices"][0]["deduction"] == 20
+
+
+@respx.mock
+async def test_cancel_posts_reason_and_description(corvo: Corvo) -> None:
+    cancelling = {**INVOICE_PROPS, "status": "cancelling", "cancellationReason": "issue_error"}
+    route = respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(202, json={"data": cancelling})
+    )
+    data, error = await corvo.invoices.cancel(
+        "inv_1", {"reason": "issue_error", "description": "Wrong amount on the invoice"}
+    )
+    assert error is None
+    assert data is not None
+    assert data["status"] == "cancelling"
+    assert json.loads(route.calls.last.request.content) == {
+        "reason": "issue_error",
+        "description": "Wrong amount on the invoice",
+    }
+
+
+@respx.mock
+async def test_cancel_returns_the_typed_error(corvo: Corvo) -> None:
+    respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
+        return_value=httpx.Response(
+            409,
+            json={"statusCode": 409, "code": "ERROR_INVOICE_NOT_CANCELLABLE", "message": "not cancellable"},
+        )
+    )
+    data, error = await corvo.invoices.cancel("inv_1", {"reason": "other"})
+    assert data is None
+    assert error is not None
+    assert error.code == "ERROR_INVOICE_NOT_CANCELLABLE"
+    assert error.status == 409
