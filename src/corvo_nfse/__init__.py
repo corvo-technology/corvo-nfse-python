@@ -48,7 +48,7 @@ from .types import (
 )
 from .webhooks import CorvoWebhooks
 
-VERSION = "0.1.1"
+VERSION = "0.2.0"
 __version__ = VERSION
 
 __all__ = [

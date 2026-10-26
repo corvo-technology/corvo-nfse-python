@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corvo-nfse"
-version = "0.1.1"
+version = "0.2.0"
 description = "Python SDK for the Corvo NFS-e API: issue Brazilian service invoices, with result-style errors, cursor pagination and webhook verification."
 readme = "README.md"
 license = { text = "MIT" }
