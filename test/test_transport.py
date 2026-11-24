@@ -5,8 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from conftest import API_KEY, BASE_URL, collect  # noqa: F401
+
 from corvo_nfse import CorvoApiError
 from corvo_nfse.transport import Transport, unwrap
 
@@ -103,9 +103,7 @@ async def test_204_returns_none() -> None:
 
 @respx.mock
 async def test_empty_body_returns_none() -> None:
-    respx.get(f"{BASE_URL}/v1/health/live").mock(
-        return_value=httpx.Response(200, content=b"")
-    )
+    respx.get(f"{BASE_URL}/v1/health/live").mock(return_value=httpx.Response(200, content=b""))
     t = make_transport()
     data, error = await t.request("GET", "/health/live", unwrap="none")
     assert (data, error) == (None, None)
@@ -164,7 +162,9 @@ async def test_error_request_id_from_header() -> None:
 @respx.mock
 async def test_429_retry_after_from_header() -> None:
     respx.get(f"{BASE_URL}/v1/companies").mock(
-        return_value=httpx.Response(429, json={"code": "ERROR_RATE_LIMITED"}, headers={"Retry-After": "12"})
+        return_value=httpx.Response(
+            429, json={"code": "ERROR_RATE_LIMITED"}, headers={"Retry-After": "12"}
+        )
     )
     t = make_transport()
     _, error = await t.request("GET", "/companies")
@@ -211,9 +211,7 @@ async def test_invalid_json_success_body() -> None:
 
 @respx.mock
 async def test_network_error_maps_to_tuple() -> None:
-    respx.get(f"{BASE_URL}/v1/companies").mock(
-        side_effect=httpx.ConnectError("connection refused")
-    )
+    respx.get(f"{BASE_URL}/v1/companies").mock(side_effect=httpx.ConnectError("connection refused"))
     t = make_transport()
     data, error = await t.request("GET", "/companies")
     assert data is None

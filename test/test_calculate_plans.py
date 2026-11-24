@@ -6,8 +6,8 @@ import json
 
 import httpx
 import respx
-
 from conftest import BASE_URL
+
 from corvo_nfse import Corvo
 
 
@@ -69,18 +69,44 @@ async def test_calculate_blocked_is_data_not_an_error(corvo: Corvo) -> None:
 
 
 @respx.mock
+async def test_calculate_keeps_null_classification_applicability_and_calculation(
+    corvo: Corvo,
+) -> None:
+    respx.post(f"{BASE_URL}/v1/invoices/calculate").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "data": {
+                    "status": "blocked",
+                    "classification": None,
+                    "applicability": None,
+                    "calculation": None,
+                }
+            },
+        )
+    )
+    data, error = await corvo.invoices.calculate(
+        {"service": {}, "amount": 10, "competenceDate": "2026-10-16"}
+    )
+    assert error is None and data is not None
+    assert data["classification"] is None and data["calculation"] is None
+
+
+@respx.mock
 async def test_plans_catalog(corvo: Corvo) -> None:
     respx.get(f"{BASE_URL}/v1/plans", params={"limit": "5"}).mock(
         return_value=httpx.Response(
             200,
             json={
-                "data": [{"slug": "developer", "monthlyAllowance": 200}],
+                "data": [{"slug": "solo", "monthlyAllowance": 200, "chargeTotalCents": 8990}],
                 "pagination": {"limit": 5, "hasMore": False, "nextCursor": None},
             },
         )
     )
-    respx.get(f"{BASE_URL}/v1/plans/growth").mock(
-        return_value=httpx.Response(200, json={"data": {"slug": "growth", "monthlyTotalCents": 8990}})
+    respx.get(f"{BASE_URL}/v1/plans/equipe", params={"cycle": "annual"}).mock(
+        return_value=httpx.Response(
+            200, json={"data": {"slug": "equipe", "chargeTotalCents": 89900}}
+        )
     )
     respx.get(f"{BASE_URL}/v1/plans/quote", params={"volume": "20000"}).mock(
         return_value=httpx.Response(200, json={"data": {"recommended_plan": "volume"}})
@@ -88,16 +114,18 @@ async def test_plans_catalog(corvo: Corvo) -> None:
 
     page, error = await corvo.plans.list(limit=5)
     assert error is None and page is not None
-    assert page["data"][0]["slug"] == "developer"
-    plan, error = await corvo.plans.get("growth")
-    assert error is None and plan is not None and plan["monthlyTotalCents"] == 8990
+    assert page["data"][0]["slug"] == "solo"
+    plan, error = await corvo.plans.get("equipe", cycle="annual")
+    assert error is None and plan is not None and plan["chargeTotalCents"] == 89900
     quote, error = await corvo.plans.quote(20000)
     assert error is None and quote is not None and quote["recommended_plan"] == "volume"
 
 
 @respx.mock
 async def test_plans_quote_is_none_for_an_invalid_volume(corvo: Corvo) -> None:
-    respx.get(f"{BASE_URL}/v1/plans/quote").mock(return_value=httpx.Response(200, json={"data": None}))
+    respx.get(f"{BASE_URL}/v1/plans/quote").mock(
+        return_value=httpx.Response(200, json={"data": None})
+    )
     quote, error = await corvo.plans.quote(0)
     assert error is None
     assert quote is None

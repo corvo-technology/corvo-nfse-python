@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "corvo-nfse"
-version = "0.2.0"
+version = "0.3.0"
 description = "Python SDK for the Corvo NFS-e API: issue Brazilian service invoices, with result-style errors, cursor pagination and webhook verification."
 readme = "README.md"
 license = { text = "MIT" }
@@ -36,6 +36,7 @@ dev = [
     "pytest-asyncio>=0.23",
     "respx>=0.21",
     "mypy>=1.10",
+    "ruff>=0.6",
 ]
 
 [tool.setuptools.packages.find]
@@ -52,3 +53,16 @@ addopts = "-q"
 [tool.mypy]
 strict = true
 python_version = "3.10"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["src/corvo_nfse/types/models.py", ".venv", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501", "UP006", "UP007", "UP035", "UP045", "B904"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests import the `corvo` fixture from conftest on purpose.
+"test/**" = ["F811", "F401"]

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import httpx
 import respx
-
 from conftest import BASE_URL, corvo
+
 from corvo_nfse import Corvo
 
 CERT = {
@@ -45,9 +45,7 @@ async def test_upload_custom_file_name(corvo: Corvo) -> None:
     route = respx.post(f"{BASE_URL}/v1/companies/c_1/certificates").mock(
         return_value=httpx.Response(201, json={"data": CERT})
     )
-    _, error = await corvo.certificates.upload(
-        "c_1", b"bytes", "pw", file_name="cert-brazil.pfx"
-    )
+    _, error = await corvo.certificates.upload("c_1", b"bytes", "pw", file_name="cert-brazil.pfx")
     assert error is None
     assert b"cert-brazil.pfx" in route.calls[0].request.content
 

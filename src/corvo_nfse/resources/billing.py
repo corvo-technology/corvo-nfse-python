@@ -12,6 +12,7 @@ class Billing:
         self._t = transport
 
     async def plan(self) -> Result[BillingPlanResponse]:
+        """Plan, subscription and usage (snake_case). 404 ``NO_PLAN_ASSIGNED`` without a plan."""
         return await self._t.request("GET", "/billing/plan")
 
     async def usage(self) -> Result[QuotaStatus]:

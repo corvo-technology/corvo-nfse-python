@@ -8,14 +8,30 @@ from urllib.parse import urlparse
 
 import httpx
 
-from .resources.billing import Billing
-from .resources.certificates import Certificates
-from .resources.companies import Companies
-from .resources.credits import Credits
-from .resources.health import Health
-from .resources.invoices import Invoices
-from .resources.plans import Plans
-from .resources.webhooks import Webhooks
+from .resources import (
+    AccountantPackage,
+    Billing,
+    Certificates,
+    Cnpj,
+    Companies,
+    Credits,
+    Customers,
+    DpsSequences,
+    FiscalPortal,
+    FiscalProfiles,
+    Health,
+    Imports,
+    IntegrationConnections,
+    IntegrationOperations,
+    Integrations,
+    InvoicePackage,
+    Invoices,
+    Plans,
+    Schedules,
+    ServiceFavorites,
+    ServiceTaxProfiles,
+    Webhooks,
+)
 from .transport import DEFAULT_BASE_URL, DEFAULT_PREFIX, DEFAULT_TIMEOUT, Transport, is_private_host
 
 _ENV_API_KEY = "CORVO_API_KEY"
@@ -48,12 +64,8 @@ class Corvo:
     ) -> None:
         resolved_key = api_key or os.environ.get(_ENV_API_KEY)
         if not resolved_key:
-            raise ValueError(
-                f"Corvo: api_key is required — pass api_key or set {_ENV_API_KEY}"
-            )
-        resolved_base = (
-            base_url or os.environ.get(_ENV_BASE_URL) or DEFAULT_BASE_URL
-        ).rstrip("/")
+            raise ValueError(f"Corvo: api_key is required — pass api_key or set {_ENV_API_KEY}")
+        resolved_base = (base_url or os.environ.get(_ENV_BASE_URL) or DEFAULT_BASE_URL).rstrip("/")
         parsed = urlparse(resolved_base)
         if parsed.scheme not in ("http", "https") or not parsed.hostname:
             raise ValueError(f"Corvo: invalid base_url: {resolved_base}")
@@ -73,14 +85,29 @@ class Corvo:
             timeout=timeout,
             client=http_client,
         )
-        self.billing = Billing(self._transport)
-        self.certificates = Certificates(self._transport)
-        self.companies = Companies(self._transport)
-        self.credits = Credits(self._transport)
-        self.health = Health(self._transport)
-        self.invoices = Invoices(self._transport)
-        self.plans = Plans(self._transport)
-        self.webhooks = Webhooks(self._transport)
+        t = self._transport
+        self.accountant_package = AccountantPackage(t)
+        self.billing = Billing(t)
+        self.certificates = Certificates(t)
+        self.cnpj = Cnpj(t)
+        self.companies = Companies(t)
+        self.credits = Credits(t)
+        self.customers = Customers(t)
+        self.dps_sequence = DpsSequences(t)
+        self.fiscal_portal = FiscalPortal(t)
+        self.fiscal_profiles = FiscalProfiles(t)
+        self.health = Health(t)
+        self.imports = Imports(t)
+        self.integration_connections = IntegrationConnections(t)
+        self.integration_operations = IntegrationOperations(t)
+        self.integrations = Integrations(t)
+        self.invoice_package = InvoicePackage(t)
+        self.invoices = Invoices(t)
+        self.plans = Plans(t)
+        self.schedules = Schedules(t)
+        self.service_favorites = ServiceFavorites(t)
+        self.service_tax_profiles = ServiceTaxProfiles(t)
+        self.webhooks = Webhooks(t)
 
     @property
     def base_url(self) -> str:
@@ -91,7 +118,7 @@ class Corvo:
         """Close the underlying HTTP connection pool (unless one was injected)."""
         await self._transport.aclose()
 
-    async def __aenter__(self) -> "Corvo":
+    async def __aenter__(self) -> Corvo:
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:

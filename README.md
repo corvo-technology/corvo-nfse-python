@@ -8,7 +8,7 @@
 - **Safe retries.** Issuing an invoice and sending an email accept an idempotency key.
 - **Webhook signature check** in constant time.
 
-Full API reference: <https://corvo.tech/en/docs>.
+Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0) is <https://corvo.tech/openapi.json>; a copy lives in [`spec/openapi.json`](spec/openapi.json) and a test checks that every one of its 94 operations has an SDK method.
 
 ## Install
 
@@ -122,7 +122,25 @@ invoice, error = await corvo.invoices.create(
 )
 ```
 
-Use `"options": {"type": "SCHEDULE"}` with a future `competenceDate` to schedule the issuance. Request bodies and responses are wire pass-through: camelCase stays camelCase.
+### Schedule or repeat an invoice
+
+`"options": {"type": "SCHEDULE"}` (once) and `"RECURRING"` (with `"recurrence": {"frequency": "WEEKLY" | "BIWEEKLY" | "MONTHLY", "endsOn": ...}`) do **not** return an invoice: they answer `202` with a *schedule* (snake_case fields). The note only exists when the schedule runs (09:00 America/Sao_Paulo, Monday to Friday). `competenceDate` is the date of the first run and must be from tomorrow on.
+
+```python
+schedule, error = await corvo.invoices.create(
+    {
+        "companyTaxId": "11222333000181",
+        "service": {"description": "Mensalidade"},
+        "amount": 300,
+        "competenceDate": "2026-12-01",
+        "options": {"type": "RECURRING", "recurrence": {"frequency": "MONTHLY"}},
+    }
+)
+runs, error = await corvo.schedules.list_runs(schedule["id"])
+await corvo.schedules.pause(schedule["id"])
+```
+
+Request bodies and responses are wire pass-through: camelCase stays camelCase (billing, schedules and imports answer in snake_case, as the API does).
 
 To declare a deduction from the ISS base, send `"deduction"` (greater than 0 and less than `amount` minus `discount`). The invoice is still issued for the full `amount`, and you are responsible for the declared value.
 
@@ -133,10 +151,20 @@ To declare a deduction from the ISS base, send `"deduction"` (greater than 0 and
 ```python
 batch, error = await corvo.invoices.create_batch(
     [
-        {"companyTaxId": "11222333000181", "idempotencyKey": "sheet-row-2",
-         "service": {"description": "Consultoria"}, "amount": 150.5, "competenceDate": "2026-10-16"},
-        {"companyTaxId": "11222333000181", "idempotencyKey": "sheet-row-3",
-         "service": {"description": "Manutenção"}, "amount": 300, "competenceDate": "2026-10-16"},
+        {
+            "companyTaxId": "11222333000181",
+            "idempotencyKey": "sheet-row-2",
+            "service": {"description": "Consultoria"},
+            "amount": 150.5,
+            "competenceDate": "2026-10-16",
+        },
+        {
+            "companyTaxId": "11222333000181",
+            "idempotencyKey": "sheet-row-3",
+            "service": {"description": "Manutenção"},
+            "amount": 300,
+            "competenceDate": "2026-10-16",
+        },
     ]
 )
 for result in batch["results"] if batch else []:
@@ -151,7 +179,10 @@ The route allows 10 batches per minute per tenant (`429` with `Retry-After`).
 ```python
 invoice, error = await corvo.invoices.cancel(
     invoice_id,
-    {"reason": "issue_error", "description": "Wrong amount on the invoice"},  # reason: issue_error | service_not_provided | other
+    {
+        "reason": "issue_error",
+        "description": "Wrong amount on the invoice",
+    },  # reason: issue_error | service_not_provided | other
 )
 ```
 
@@ -160,6 +191,51 @@ invoice, error = await corvo.invoices.cancel(
 - `processing`: stays `processing` with `cancellationRequestedAt` set and is cancelled once authorized.
 
 `description` (15 to 255 characters) is required for an authorized or processing invoice and optional for a queued one. Read the invoice again (or listen to the `nfse.invoice.cancelled` and `nfse.invoice.cancellation_rejected` webhooks) to see the outcome: `cancelled`, or back to `authorized` with `lastErrorCode` when the cancellation was rejected.
+
+## Look up a CNPJ, customers and favorite services
+
+```python
+profile, error = await corvo.cnpj.lookup("11222333000181")        # error.code == "CNPJ_INVALID" when malformed
+
+page, error = await corvo.customers.search(search="ana", limit=20)  # saved customers, most recent first
+customer, error = await corvo.customers.get("52998224725")
+_, error = await corvo.customers.update("52998224725", {"email": "ana@example.com"})
+_, error = await corvo.customers.remove("52998224725")            # issued invoices do not change
+
+async for customer in corvo.customers.iterate():
+    ...
+
+fav, error = await corvo.service_favorites.create(
+    company_id, {"label": "Consultoria", "description": "Consultoria em TI", "serviceCode": "010101"}
+)
+```
+
+## Substitute an invoice and the monthly package
+
+```python
+new_invoice, error = await corvo.invoices.substitute(
+    invoice_id, {"description": "Valor do servico corrigido"}, idempotency_key="sub-42"
+)
+
+summary, error = await corvo.invoice_package.summary(company_id, "2026-10")
+zip_file, error = await corvo.invoice_package.download(company_id, "2026-10", include="xml")
+settings, error = await corvo.accountant_package.update(company_id, {"accountantEmail": "contador@example.com"})
+sent, error = await corvo.accountant_package.send(company_id, "2026-10")  # sent["status"], list_sends() for history
+```
+
+`invoices.send_email(invoice_id, email="outro@example.com")` sends to another address than the customer's. `invoices.list(customerTaxId="...")` filters by customer.
+
+## Import a spreadsheet
+
+```python
+template, error = await corvo.imports.download_template()   # CSV bytes in template.content
+job, error = await corvo.imports.start(open("notas.csv", "rb").read(), company_id=company_id)
+job, error = await corvo.imports.get(job["id"])             # status: processing -> ready
+async for row in corvo.imports.iterate_rows(job["id"], status="invalid"):
+    await corvo.imports.update_row(job["id"], row["line"], {"item": {"amount": 100}})
+await corvo.imports.emit(job["id"], {"sendEmail": True})
+errors_csv, error = await corvo.imports.download_errors(job["id"])
+```
 
 ## Walk every page
 
@@ -197,18 +273,38 @@ Webhook events you can subscribe to are exported as `corvo_nfse.WEBHOOK_EVENTS`.
 
 ## Resources
 
+Every contract operation (`operationId`) has a method; `test/test_contract_coverage.py` keeps the mapping.
+
 | Namespace | Operations |
 | --- | --- |
 | `corvo.companies` | `create`, `get`, `update`, `remove`, `list`, `iterate` |
 | `corvo.certificates` | `upload`, `list`, `remove` |
-| `corvo.invoices` | `create`, `create_batch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email`, `cancel` |
+| `corvo.dps_sequence` | `get`, `set` |
+| `corvo.fiscal_profiles` | `list`, `upsert`, `approve` |
+| `corvo.service_tax_profiles` | `list`, `create`, `update`, `remove`, `approve` |
+| `corvo.service_favorites` | `list`, `create`, `remove` |
+| `corvo.accountant_package` | `get`, `update`, `send`, `list_sends` |
+| `corvo.invoice_package` | `summary`, `download` |
+| `corvo.invoices` | `create`, `create_batch`, `calculate`, `get`, `list`, `iterate`, `events`, `pdf`, `xml`, `download_url`, `send_email`, `cancel`, `substitute`, `overview`, `review` |
+| `corvo.schedules` | `list`, `iterate`, `get`, `update`, `pause`, `resume`, `cancel`, `list_runs`, `iterate_runs` |
+| `corvo.imports` | `start`, `list`, `get`, `emit`, `list_rows`, `iterate_rows`, `update_row`, `discard`, `download_template`, `download_errors` |
+| `corvo.customers` | `search`, `iterate`, `get`, `update`, `remove` |
+| `corvo.cnpj` | `lookup` |
+| `corvo.integrations` | `list_providers` |
+| `corvo.integration_connections` | `create`, `list`, `get`, `validate`, `update_credentials`, `activate`, `pause`, `disconnect`, `list_rules`, `replace_rules`, `list_events`, `list_operations` |
+| `corvo.integration_operations` | `complete_customer`, `retry` |
 | `corvo.webhooks` | `create`, `remove`, `test`, `list`, `iterate`, `.deliveries.list`, `.deliveries.iterate`, `.deliveries.stats`, `.deliveries.retry` |
-| `corvo.credits` | `balance`, `plans`, `history`, `iterate_history` |
+| `corvo.credits` | `balance`, `plans`, `history`, `iterate_history`, `preview_purchase` |
 | `corvo.billing` | `plan`, `usage` |
-| `corvo.plans` | `list`, `get`, `quote` (public price catalog) |
+| `corvo.fiscal_portal` | `status` |
+| `corvo.plans` | `list`, `get`, `quote` (public price catalog, not in the contract) |
 | `corvo.health` | `live`, `ready` |
 
-Changing plans and the billing portal exist only in the dashboard, so they are not in the SDK.
+Plans are `free`, `solo`, `equipe`, `empresa` and `escala` (plus `self-hosted` on a self-hosted instance): treat the slug as an open string and read the allowances from the plan. `credits.balance()` returns `balance` (plan notes left plus loose notes), `planRemaining` and `avulsoBalance`; buying notes is done in the dashboard (`credits.preview_purchase(units)` only prices it).
+
+Webhooks created with an API key belong to that key's environment: a `corvo_test_` key cannot reach live webhooks, and destinations on private networks are refused.
+
+Changing plans, checkout and the billing portal exist only in the dashboard, so they are not in the SDK.
 
 ## Configuration
 
@@ -223,17 +319,20 @@ Changing plans and the billing portal exist only in the dashboard, so they are n
 
 ## Behavior
 
-- **Auth.** Every request sends `X-API-Key`. Keys are `corvo_test_...` or `corvo_live_...` and belong to one account and environment; the key decides the environment.
+- **Auth.** Every request sends `X-API-Key` and a `User-Agent` of `corvo-nfse-python/<version>`. Keys are `corvo_test_...` or `corvo_live_...` and belong to one account and environment; the key decides the environment.
 - **Responses.** Single resources and list items come back as the API's `data`; lists add `pagination`.
-- **Errors.** Network failures, timeouts, non-2xx responses and malformed JSON all return a `CorvoApiError`. `code` is the API's `ERROR_*` code, falling back to `http_<status>`; transport failures use `network_error`, `timeout` and `invalid_json`. On `429`, `retry_after` holds the seconds to wait.
+- **Errors.** Network failures, timeouts, non-2xx responses and malformed JSON all return a `CorvoApiError`. `code` is an open string (the API's `ERROR_*` codes and a few others such as `NO_PLAN_ASSIGNED`), falling back to `http_<status>`; `rate_limit` holds the `X-RateLimit-*` headers when sent; transport failures use `network_error`, `timeout` and `invalid_json`. On `429`, `retry_after` holds the seconds to wait.
 
 ## Development
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest   # unit tests; the contract test skips without env
+python -m pytest   # unit tests + contract coverage; the live test skips without env
 python -m mypy src
+ruff check . && ruff format --check .
 ```
+
+The wire types in `src/corvo_nfse/types/models.py` are generated from `spec/openapi.json` (`python scripts/gen_models.py`); the client itself is hand-written. To adopt a new contract version, replace `spec/openapi.json`, regenerate, and add the new operations to `test/test_contract_coverage.py`.
 
 The contract test in `test/contract/` runs only when `CORVO_API_KEY` and `CORVO_BASE_URL` point to a reachable instance.
 

@@ -1,67 +1,16 @@
 """Billing wire types.
 
-Note: ``BillingPlanResponse`` keeps the server's snake_case keys (the one
-place the API mixes casing) — pass-through, no re-casing.
+``BillingPlanResponse`` keeps the server's snake_case keys (``GET /billing/plan`` is one of the
+routes that answers in snake_case): pass-through, no re-casing.
 """
 
 from __future__ import annotations
 
-from typing import Literal, Optional, TypedDict
+from . import models
 
-
-class BillingPlanSection(TypedDict):
-    slug: str
-    name: str
-    monthly_allowance: int
-    daily_limit: Optional[int]
-    max_active_companies: int
-    monthly_price_cents: int
-
-
-class BillingSubscriptionSection(TypedDict):
-    status: str
-    paid_until: Optional[str]
-    cancel_at_period_end: bool
-    scheduled_plan: Optional[str]
-    blocked: bool
-
-
-class BillingUsageSection(TypedDict):
-    overage_units: int
-    overage_amount_cents: int
-    hard_limit: Optional[int]
-    credits_used: int
-    credits_reserved: int
-    credits_remaining: int
-    monthly_allowance: int
-    daily_usage: int
-    daily_limit: Optional[int]
-    active_companies: int
-    max_active_companies: int
-    period_start: Optional[str]
-    period_end: Optional[str]
-
-
-class BillingPlanResponse(TypedDict):
-    plan: BillingPlanSection
-    subscription: BillingSubscriptionSection
-    usage: BillingUsageSection
-
-
-class _QuotaStatusRequired(TypedDict):
-    canEmit: bool
-    creditsRemaining: float
-    creditsUsed: float
-    creditsReserved: float
-    monthlyAllowance: float
-    dailyUsage: float
-    dailyLimit: Optional[int]
-    activeCompanies: int
-    maxActiveCompanies: int
-    periodStart: Optional[str]
-    periodEnd: Optional[str]
-
-
-class QuotaStatus(_QuotaStatusRequired, total=False):
-    # Set when canEmit is False.
-    reason: Literal["no_credits", "daily_limit_exceeded", "company_limit_exceeded", "plan_blocked"]
+BillingPlanSection = models.BillingPlanPlan
+BillingSubscriptionSection = models.BillingPlanSubscription
+BillingPixSubscription = models.BillingPlanSubscriptionPix_subscription
+BillingUsageSection = models.BillingPlanUsage
+BillingPlanResponse = models.BillingPlan
+QuotaStatus = models.QuotaStatus

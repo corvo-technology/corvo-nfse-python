@@ -1,8 +1,10 @@
-"""Invoice wire types."""
+"""Invoice wire types (aliases of the generated models, so they match the contract exactly)."""
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Literal, Optional, TypedDict
+from typing import Any, List, Literal, TypedDict
+
+from . import models
 
 InvoiceStatus = Literal[
     "queued",
@@ -17,176 +19,53 @@ InvoiceStatus = Literal[
     "cancelled",
 ]
 
+INVOICE_STATUSES = (
+    "queued",
+    "processing",
+    "authorized",
+    "rejected",
+    "retry_pending",
+    "reconciliation_required",
+    "manual_review",
+    "failed",
+    "cancelling",
+    "cancelled",
+)
+
 InvoiceCancellationReason = Literal["issue_error", "service_not_provided", "other"]
 
 INVOICE_CANCELLATION_REASONS = ("issue_error", "service_not_provided", "other")
 
 InvoiceStage = Literal["pending", "authorized", "documents_ready", "completed", "failed"]
 
-
-class InvoiceCustomerAddress(TypedDict, total=False):
-    street: str
-    city: str
-    state: str
-    zip: str
-    country: str
-
-
-class _InvoiceCustomerRequired(TypedDict):
-    taxId: str
-
-
-class InvoiceCustomerInput(_InvoiceCustomerRequired, total=False):
-    """Required whenever a customer is sent: ``taxId`` (CPF or CNPJ). Omit the customer for none."""
-
-    name: str
-    email: str
-    address: InvoiceCustomerAddress
-
-
-class InvoiceServiceInput(TypedDict, total=False):
-    """All optional: ``code`` defaults to the company's, then to ``100901``; the city to the company's."""
-
-    code: str
-    municipalityCode: str
-    description: str
-
-
-class InvoiceEmailOptions(TypedDict, total=False):
-    send: bool
-
-
-class InvoiceOptions(TypedDict, total=False):
-    email: InvoiceEmailOptions
-    type: Literal["IMMEDIATE", "SCHEDULE"]
-
-
-class _InvoiceCreateRequired(TypedDict):
-    service: InvoiceServiceInput
-    amount: float
-    competenceDate: str
-
-
-class InvoiceCreateParams(_InvoiceCreateRequired, total=False):
-    """Identify the company by ``companyId`` or ``companyTaxId``; ``customer`` is optional."""
-
-    companyId: str
-    companyTaxId: str
-    externalId: str
-    customer: InvoiceCustomerInput
-    discount: float  # unconditional discount in BRL, from 0 up to amount
-    deduction: float  # ISS base deduction declared by the issuer: > 0 and < amount - discount
-    email: bool
-    options: InvoiceOptions
-
-
-class _InvoiceCancelRequired(TypedDict):
-    reason: InvoiceCancellationReason
-
-
-class InvoiceCancelParams(_InvoiceCancelRequired, total=False):
-    """``description`` (15 to 255 characters) is required to cancel an authorized or processing invoice."""
-
-    description: str
-
-
-class InvoiceBatchItem(InvoiceCreateParams, total=False):
-    """One item of ``invoices.create_batch``: the fields of ``InvoiceCreateParams`` plus its own key."""
-
-    idempotencyKey: str  # up to 255 characters; the Idempotency-Key header is not used by the batch route
-
-
-class InvoiceCustomerSnapshot(TypedDict, total=False):
-    name: str
-    email: str
-    taxId: str
-    address: InvoiceCustomerAddress
-
-
-class InvoiceServiceSnapshot(TypedDict, total=False):
-    code: str
-    description: str
-    municipalityCode: str
-
-
-class _InvoiceOptional(TypedDict, total=False):
-    discount: float  # present when a discount was declared
-    deduction: float  # present when an ISS base deduction was declared
-
-
-class Invoice(_InvoiceOptional):
-    id: str
-    companyId: str
-    tenantId: str
-    environment: Literal["test", "live"]
-    documentKeyVersion: int
-    emailSnapshot: Dict[str, Any]
-    externalId: Optional[str]
-    idempotencyKey: Optional[str]
-    status: InvoiceStatus
-    customerSnapshot: InvoiceCustomerSnapshot
-    serviceSnapshot: InvoiceServiceSnapshot
-    taxSnapshot: Dict[str, Any]
-    amount: float
-    currency: str
-    competenceDate: str
-    dpsId: Optional[str]
-    dpsSeries: Optional[str]
-    dpsNumber: Optional[int]
-    accessKey: Optional[str]
-    nfseNumber: Optional[int]
-    fiscalProvider: Optional[str]
-    fiscalSchemaVersion: Optional[str]
-    issuedAt: Optional[str]
-    authorizedAt: Optional[str]
-    lastErrorCode: Optional[str]
-    lastErrorMessage: Optional[str]
-    lastErrorProvider: Optional[str]
-    documentsReadyAt: Optional[str]
-    lastEmailStatus: Optional[str]
-    lastEmailSentAt: Optional[str]
-    createdAt: str
-    updatedAt: str
-    documentsStatus: Literal["pending", "ready"]
-    emailStatus: Optional[Literal["queued", "sent", "failed"]]
-    stage: InvoiceStage
-    scheduledFor: Optional[str]
-    cancellationReason: Optional[InvoiceCancellationReason]
-    cancellationDescription: Optional[str]
-    cancelledAt: Optional[str]
-    cancellationRequestedAt: Optional[str]
-
-
-class InvoiceBatchError(TypedDict, total=False):
-    code: str
-    message: str
-    details: Any
-
-
-class InvoiceBatchResult(TypedDict, total=False):
-    """``status`` is ``accepted`` (``invoice`` set) or ``rejected`` (``error`` set, item not saved)."""
-
-    index: int  # position of the item in the request, starting at 0
-    status: Literal["accepted", "rejected"]
-    replayed: Literal[True]  # the item repeated an idempotencyKey already saved with the same content
-    invoice: Invoice
-    error: InvoiceBatchError
-
-
-class InvoiceBatchSummary(TypedDict):
-    total: int
-    accepted: int
-    rejected: int
-    results: List[InvoiceBatchResult]  # one entry per item, in the order sent
-
-
-class InvoiceEvent(TypedDict):
-    id: str
-    invoiceId: str
-    fromStatus: Optional[InvoiceStatus]
-    toStatus: InvoiceStatus
-    reason: Optional[str]
-    createdAt: str
+InvoiceCustomerAddress = models.CustomerAddress
+InvoiceCustomerInput = models.InvoiceCustomer
+InvoiceForeignCustomer = models.ForeignCustomer
+InvoiceServiceInput = models.InvoiceService
+InvoiceEmailOptions = models.EmailOptions
+InvoiceOptions = models.InvoiceOptions
+InvoiceRecurrence = models.RecurrenceOptions
+InvoiceCreateParams = models.CreateInvoice
+InvoiceCancelParams = models.CancelInvoice
+InvoiceSubstituteParams = models.SubstituteInvoice
+InvoiceReviewParams = models.ReviewInvoices
+InvoiceReviewResult = models.InvoiceReviewResult
+InvoiceEmailParams = models.RequestInvoiceEmail
+InvoiceBatchItem = models.InvoiceBatchItem
+InvoiceBatchError = models.InvoiceBatchError
+InvoiceBatchResult = models.InvoiceBatchResult
+InvoiceBatchSummary = models.InvoiceBatch
+InvoiceCustomerSnapshot = models.CustomerSnapshot
+InvoiceServiceSnapshot = models.ServiceSnapshot
+Invoice = models.Invoice
+InvoiceEvent = models.InvoiceEvent
+InvoiceDownloadUrl = models.InvoiceDownloadUrl
+InvoiceEmailResult = models.InvoiceEmailRequest
+InvoiceCalculation = models.InvoiceCalculation
+InvoiceOverview = models.InvoiceOverview
+InvoicePackageSummary = models.PackageSummary
+FiscalPortalStatus = models.PortalStatus
+CalculatedTaxes = models.CalculatedTaxes
 
 
 class InvoiceListParams(TypedDict, total=False):
@@ -195,52 +74,12 @@ class InvoiceListParams(TypedDict, total=False):
     from_: str
     to: str
     externalId: str
+    customerTaxId: str
     limit: int
     cursor: str
 
 
-class InvoiceDownloadUrl(TypedDict):
-    downloadUrl: str
-    expiresAt: str
-    fileName: str
-    mimeType: str
-
-
-class InvoiceEmailResult(TypedDict):
-    emailId: str
-    status: str
-
-
-class CalculatedTaxAmount(TypedDict, total=False):
-    base: str
-    rate: str  # absent on ibsTotal, which sums the state and municipal IBS
-    amount: str
-
-
-class CalculatedTaxes(TypedDict, total=False):
-    iss: CalculatedTaxAmount
-    cbs: CalculatedTaxAmount
-    ibsState: CalculatedTaxAmount
-    ibsCity: CalculatedTaxAmount
-    ibsTotal: CalculatedTaxAmount
-
-
-class InvoiceCalculation(TypedDict):
-    """Pre-emission estimate. ``status`` is ``ready`` or ``blocked``: a fiscal gap is data, not an error."""
-
-    preEmission: Literal[True]
-    status: Literal["ready", "blocked"]
-    disclaimer: str
-    competenceDate: str
-    taxRegime: Optional[str]
-    classification: Dict[str, Any]
-    applicability: Dict[str, Any]
-    taxes: CalculatedTaxes
-    withholdings: List[Dict[str, Any]]
-    netReceivableAmount: Optional[str]
-    collectionWaived: Optional[bool]
-    calculation: Dict[str, Any]
-    warnings: List[Dict[str, Any]]
-    pendingFields: List[Dict[str, str]]
-    blocking: Optional[Dict[str, str]]
-    trace: List[Dict[str, Any]]
+#: ``POST /invoices`` answers with an :class:`Invoice` for ``IMMEDIATE`` and with a
+#: :class:`~corvo_nfse.types.models.Schedule` (snake_case fields) for ``SCHEDULE``/``RECURRING``.
+InvoiceCreateResult = Any
+InvoiceList = List[models.Invoice]
