@@ -245,24 +245,24 @@ class _CompanyRequired(TypedDict):
 
 
 class Company(_CompanyRequired, total=False):
-    addressCity: str
-    addressComplement: str
-    addressDistrict: str
-    addressNumber: str
-    addressState: str
-    addressStreet: str
-    addressZip: str
-    defaultServiceCode: str
+    addressCity: Optional[str]
+    addressComplement: Optional[str]
+    addressDistrict: Optional[str]
+    addressNumber: Optional[str]
+    addressState: Optional[str]
+    addressStreet: Optional[str]
+    addressZip: Optional[str]
+    defaultServiceCode: Optional[str]
     municipalityAgreement: MunicipalityAgreement
     # 7-digit IBGE code.
     municipalityCode: str
-    municipalReg: str
+    municipalReg: Optional[str]
     sendMunicipalReg: bool
     # Percent, e.g. "2.00".
-    simplesIssRate: str
+    simplesIssRate: Optional[str]
     # Percent, e.g. "6.00".
-    simplesRate: str
-    tradeName: str
+    simplesRate: Optional[str]
+    tradeName: Optional[str]
     # Only on creation: differences between what you sent and the public CNPJ registry. They never
     # block the request.
     warnings: List[RegistryWarning]
@@ -502,11 +502,6 @@ class DpsSequence(TypedDict):
 
 class EmailOptions(TypedDict, total=False):
     send: bool
-
-
-class EmitImport(TypedDict, total=False):
-    # Email each issued invoice to the customer. Only rows that have a customer email are sent.
-    sendEmail: bool
 
 
 class _FiscalProfileRequired(TypedDict):
@@ -766,10 +761,14 @@ class _InvoiceRequired(TypedDict):
     competenceDate: str
     dpsId: Optional[str]
     dpsSeries: Optional[str]
-    dpsNumber: Optional[float]
+    # The DPS number, a JSON integer (at most 15 digits, within the safe integer range of
+    # JavaScript). The leading zeros of the printed number are not kept.
+    dpsNumber: Optional[int]
     # NFS-e access key (50 digits), once authorized.
     accessKey: Optional[str]
-    nfseNumber: Optional[float]
+    # The NFS-e number, a JSON integer (at most 15 digits, within the safe integer range of
+    # JavaScript). The leading zeros of the printed number are not kept.
+    nfseNumber: Optional[int]
     fiscalProvider: str
     fiscalSchemaVersion: str
     issuedAt: Optional[str]
@@ -831,8 +830,8 @@ class _InvoiceBatchErrorRequired(TypedDict):
 
 
 class InvoiceBatchError(_InvoiceBatchErrorRequired, total=False):
-    # Field-level details, when the error has them.
-    details: Dict[str, Any]
+    # Field-level details, when the error has them (a list of issues for validation errors).
+    details: Union[List[Dict[str, Any]], Dict[str, Any]]
 
 
 class _InvoiceBatchItemRequired(TypedDict):
@@ -1027,8 +1026,9 @@ class OverviewDay(TypedDict):
 class PackageSummary(TypedDict):
     month: str
     count: int
-    # Sum of the amounts, in BRL.
-    total: float
+    # Sum of the gross amount of the authorized notes, in BRL, as a decimal string with two
+    # places.
+    total: str
     # Most notes a package can hold.
     limit: int
     companyName: str
@@ -1060,6 +1060,20 @@ class Plan(TypedDict):
     active: bool
     createdAt: str
     updatedAt: str
+
+
+class PlanPrice(TypedDict):
+    slug: Literal["solo", "equipe", "empresa", "escala"]
+    name: str
+    # Notes included per month.
+    monthlyAllowance: int
+    # Full monthly price, in centavos.
+    basePriceCents: int
+    # Price per month in the chosen cycle (the annual cycle is discounted).
+    monthlyEquivalentCents: int
+    # What is charged at once for the chosen cycle.
+    chargeTotalCents: int
+    currency: Literal["BRL"]
 
 
 class PortalStatus(TypedDict):
@@ -1310,9 +1324,6 @@ class UpdateCompany(TypedDict, total=False):
     # Microempresa Municipal, 4 Notário ou Registrador, 5 Profissional Autônomo, 6 Sociedade de
     # Profissionais. Empty string clears it.
     specialRegime: Literal["0", "1", "2", "3", "4", "5", "6"]
-    # The CNPJ cannot be changed. Sending the current CNPJ is accepted and ignored; any other
-    # value returns 422.
-    taxId: str
     taxRegime: Literal["MEI", "Simples Nacional", "Lucro Presumido", "Lucro Real"]
     tradeName: str
 

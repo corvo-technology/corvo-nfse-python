@@ -11,23 +11,13 @@ CreditBalance = models.CreditBalance
 CreditPlan = models.Plan
 CreditTransaction = models.CreditTransaction
 CreditPurchasePreview = models.PurchasePreview
+#: Public catalog entry (``GET /plans``, ``GET /plans/{slug}``): prices in centavos.
+PlanPrice = models.PlanPrice
 
 
 class CreditHistoryParams(TypedDict, total=False):
     limit: int
     cursor: str
-
-
-class PlanQuote(TypedDict):
-    """Public catalog entry (``GET /plans``): prices in centavos, monthly cycle only."""
-
-    slug: str
-    name: str
-    monthlyAllowance: int
-    basePriceCents: int
-    perCreditOverageCents: int
-    monthlyTotalCents: int
-    currency: Literal["BRL"]
 
 
 class PlanRecommendation(TypedDict):

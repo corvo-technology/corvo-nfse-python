@@ -8,7 +8,7 @@
 - **Safe retries.** Issuing an invoice and sending an email accept an idempotency key.
 - **Webhook signature check** in constant time.
 
-Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0) is <https://corvo.tech/openapi.json>; a copy lives in [`spec/openapi.json`](spec/openapi.json) and a test checks that every one of its 92 operations has an SDK method.
+Full API reference: <https://corvo.tech/en/docs>. The machine-readable contract (OpenAPI 0.3.0) is <https://corvo.tech/openapi.json>; a copy lives in [`spec/openapi.json`](spec/openapi.json) and a test checks that every one of its 94 operations has an SDK method.
 
 ## Install
 

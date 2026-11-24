@@ -250,7 +250,7 @@ async def test_overview_and_review(corvo: Corvo) -> None:
 async def test_invoice_package_summary_and_zip_download(corvo: Corvo) -> None:
     respx.get(f"{V1}/companies/c_1/invoice-package/summary").mock(
         return_value=httpx.Response(
-            200, json={"data": {"month": "2026-10", "count": 3, "total": 450.5}}
+            200, json={"data": {"month": "2026-10", "count": 3, "total": "450.50"}}
         )
     )
     zip_route = respx.get(f"{V1}/companies/c_1/invoice-package").mock(
@@ -264,7 +264,12 @@ async def test_invoice_package_summary_and_zip_download(corvo: Corvo) -> None:
         )
     )
     summary, error = await corvo.invoice_package.summary("c_1", "2026-10")
-    assert error is None and summary is not None and summary["count"] == 3
+    assert (
+        error is None
+        and summary is not None
+        and summary["count"] == 3
+        and summary["total"] == "450.50"
+    )
     file, error = await corvo.invoice_package.download("c_1", "2026-10", include="pdf")
     assert error is None and file is not None
     assert file.content == b"PK\x03\x04zip"
@@ -551,12 +556,12 @@ async def test_imports_flow_and_downloads(corvo: Corvo) -> None:
 
 
 @respx.mock
-async def test_imports_emit_without_params_sends_an_empty_object(corvo: Corvo) -> None:
+async def test_imports_emit_without_params_sends_no_body(corvo: Corvo) -> None:
     route = respx.post(f"{V1}/imports/i_1/emit").mock(
         return_value=httpx.Response(202, json={"data": {"id": "i_1", "status": "emitting"}})
     )
     await corvo.imports.emit("i_1")
-    assert json.loads(route.calls[0].request.content) == {}
+    assert route.calls[0].request.content == b""
 
 
 # --- company setup ------------------------------------------------------------------------------

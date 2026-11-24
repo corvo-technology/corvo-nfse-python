@@ -2,7 +2,7 @@
 
 ## 0.3.0
 
-Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi.json), 92 operations).
+Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi.json), 94 operations).
 
 ### Breaking
 
@@ -18,6 +18,7 @@ Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi
 
 ### Added
 
+- Public plan prices without an API key: `plans.list(cycle=...)` (`GET /plans`) and `plans.get(slug, cycle=...)` (`GET /plans/{slug}`), typed as `PlanPrice` (replaces `PlanQuote`).
 - 51 operations: `customers.*`, `cnpj.lookup`, `service_favorites.*`, `accountant_package.*`, `invoice_package.*`, `invoices.substitute/overview/review`, `schedules.*`, `imports.*` (multipart upload, template and errors CSV), `fiscal_profiles.*`, `service_tax_profiles.*`, `dps_sequence.*`, `integrations.*`, `integration_connections.*`, `integration_operations.*`, `credits.preview_purchase`, `fiscal_portal.status`.
 - `invoices.list(customerTaxId=...)`, `invoices.send_email(email=...)`; `RECURRING` options and `customer.foreign`, `purchaseOrder`, `notes` in the request types.
 - `CorvoApiError.rate_limit` (`X-RateLimit-*`), error `details` as an object or a list, `User-Agent: corvo-nfse-python/<version>`, path segments percent-encoded.
@@ -25,4 +26,8 @@ Follows the public API contract 0.3.0 ([openapi.json](https://corvo.tech/openapi
 
 ### Changed
 
+- Contract corrections: `invoice_package.summary()` returns `total` as a decimal string (`"1234.50"`); company, invoice, schedule and webhook fields the API may answer with `null` are `Optional` (`tradeName`, `address*`, `municipalReg`, `defaultServiceCode`, tax rates, `emailStatus`, `lastEmailStatus`, `cancellationReason`, `portalFlag`, and `classification`/`applicability`/`calculation` of `invoices.calculate`); `nfseNumber`, `dpsNumber` and `DpsSequence.lastNumber` are integers; batch error `details` is a list of issues or an object; `stripe_subscription` is a boolean and `pix_subscription` an object or `None`.
+- `companies.update()` no longer accepts `taxId`: the CNPJ is immutable.
+- `imports.emit()` sends no body when called without params; `invoices.send_email()` already sent none.
+- The generator reads `{"enum": [null]}` and `null` enum members as `Optional`.
 - CI: Python 3.10 to 3.13, `ruff` lint and format, generated models checked against the spec. The publish workflow also runs `ruff`.

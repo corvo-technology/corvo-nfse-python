@@ -51,9 +51,7 @@ class Imports:
         self, import_id: str, params: Optional[ImportEmitParams] = None
     ) -> Result[ImportJob]:
         """Emit every valid row of the import. Answers ``202``."""
-        return await self._t.request(
-            "POST", f"/imports/{seg(import_id)}/emit", json=params if params is not None else {}
-        )
+        return await self._t.request("POST", f"/imports/{seg(import_id)}/emit", json=params or None)
 
     async def list_rows(
         self,

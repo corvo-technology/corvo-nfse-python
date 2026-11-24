@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Literal, Optional
 
 from ..error import Result
-from ..transport import Transport
-from ..types.credits import PlanQuote, PlanRecommendation
+from ..transport import Transport, seg
+from ..types.credits import PlanPrice, PlanRecommendation
 
 
 class Plans:
@@ -14,14 +14,20 @@ class Plans:
         self._t = transport
 
     async def list(
-        self, *, limit: Optional[int] = None, cursor: Optional[str] = None
+        self,
+        *,
+        limit: Optional[int] = None,
+        cursor: Optional[str] = None,
+        cycle: Optional[Literal["monthly", "annual"]] = None,
     ) -> Result[Dict[str, Any]]:
-        """One page of plan prices, from the smallest to the largest allowance."""
-        return await self._t.list_page("/plans", {"limit": limit, "cursor": cursor})
+        """One page of public plan prices (``PlanPrice``). Needs no API key; ``cycle="annual"`` is discounted."""
+        return await self._t.list_page("/plans", {"limit": limit, "cursor": cursor, "cycle": cycle})
 
-    async def get(self, slug: str) -> Result[PlanQuote]:
-        """The price of one plan (``free``, ``solo``, ``equipe``, ``empresa`` or ``escala``; read the slug as an open string)."""
-        return await self._t.request("GET", f"/plans/{slug}")
+    async def get(
+        self, slug: str, *, cycle: Optional[Literal["monthly", "annual"]] = None
+    ) -> Result[PlanPrice]:
+        """The price of one paid plan (``solo``, ``equipe``, ``empresa`` or ``escala``). Needs no API key."""
+        return await self._t.request("GET", f"/plans/{seg(slug)}", query={"cycle": cycle})
 
     async def quote(self, volume: int) -> Result[Optional[PlanRecommendation]]:
         """The plan recommended for ``volume`` invoices per month.

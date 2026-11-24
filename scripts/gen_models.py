@@ -36,6 +36,13 @@ def literal(values: List[Any]) -> str:
 def py_type(s: Dict[str, Any], hint: str) -> str:
     """Python annotation (a string, evaluated lazily) for a schema."""
     nullable = bool(s.get("nullable"))
+    opts = s.get("oneOf") or s.get("anyOf")
+    if opts and any(o.get("enum") == [None] for o in opts):
+        # `{"enum": [null]}` is how the contract spells "or null".
+        nullable = True
+        kept = [o for o in opts if o.get("enum") != [None]]
+        s = {k: v for k, v in s.items() if k not in ("oneOf", "anyOf")}
+        s["anyOf"] = kept
     t = _py_type(s, hint)
     if nullable and not t.startswith("Optional["):
         t = f"Optional[{t}]"
@@ -52,11 +59,13 @@ def _py_type(s: Dict[str, Any], hint: str) -> str:
         return "Dict[str, Any]"
     if "oneOf" in s or "anyOf" in s:
         opts = s.get("oneOf") or s.get("anyOf")
+        if len(opts) == 1:
+            return py_type(opts[0], hint)
         return (
             "Union[" + ", ".join(py_type(o, f"{hint}Variant{i}") for i, o in enumerate(opts)) + "]"
         )
     if "enum" in s:
-        return literal(s["enum"])
+        return literal([v for v in s["enum"] if v is not None])
     t = s.get("type")
     if t == "string":
         return "str"

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TypedDict
+
 from . import models
 
 SavedCustomer = models.SavedCustomer
@@ -16,7 +18,15 @@ ImportJob = models.ImportJob
 ImportStart = models.ImportStart
 ImportRow = models.ImportRow
 ImportCounters = models.ImportCounters
-ImportEmitParams = models.EmitImport
+
+
+class ImportEmitParams(TypedDict, total=False):
+    """Optional body of ``imports.emit``; the contract documents no body schema."""
+
+    # E-mail each issued invoice to its customer.
+    sendEmail: bool
+
+
 ImportRowUpdateParams = models.UpdateImportRow
 
 IntegrationProvider = models.IntegrationProvider

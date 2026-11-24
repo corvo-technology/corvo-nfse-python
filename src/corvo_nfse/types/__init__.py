@@ -51,7 +51,7 @@ from .credits import (
     CreditPlan,
     CreditPurchasePreview,
     CreditTransaction,
-    PlanQuote,
+    PlanPrice,
     PlanRecommendation,
 )
 from .customer import (
@@ -222,7 +222,7 @@ __all__ = [
     "MunicipalityAgreement",
     "Paginated",
     "Pagination",
-    "PlanQuote",
+    "PlanPrice",
     "PlanRecommendation",
     "QuotaStatus",
     "SavedCustomer",

@@ -118,6 +118,8 @@ CASES: Dict[str, Tuple[Call, Dict[str, str]]] = {
     ),
     "credits_getBalance": (lambda c: c.credits.balance(), {}),
     "credits_listHistory": (lambda c: c.credits.history(limit=1), {}),
+    "plans_list": (lambda c: c.plans.list(limit=1, cursor="x", cycle="annual"), {}),
+    "plans_get": (lambda c: c.plans.get("solo", cycle="annual"), {"slug": "solo"}),
     "credits_listPlans": (lambda c: c.credits.plans(limit=1), {}),
     "credits_previewPurchase": (lambda c: c.credits.preview_purchase(5), {}),
     "customers_search": (lambda c: c.customers.search(search="ana", limit=5, cursor="0"), {}),
@@ -302,7 +304,7 @@ OPERATIONS = _operations()
 
 def test_contract_is_the_expected_version() -> None:
     assert SPEC["info"]["version"] == "0.3.0"
-    assert len(OPERATIONS) == 92
+    assert len(OPERATIONS) == 94
 
 
 def test_every_operation_has_a_case_and_no_case_is_stale() -> None:
