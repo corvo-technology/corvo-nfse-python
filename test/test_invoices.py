@@ -6,8 +6,8 @@ import json
 
 import httpx
 import respx
-
 from conftest import BASE_URL, collect, corvo
+
 from corvo_nfse import Corvo
 
 INVOICE_PROPS = {
@@ -105,9 +105,7 @@ async def test_list_returns_the_items(corvo: Corvo) -> None:
 @respx.mock
 async def test_list_from_param_maps_to_wire_from(corvo: Corvo) -> None:
     route = respx.get(f"{BASE_URL}/v1/invoices").mock(
-        return_value=httpx.Response(
-            200, json={"data": [], "pagination": {"hasMore": False}}
-        )
+        return_value=httpx.Response(200, json={"data": [], "pagination": {"hasMore": False}})
     )
     await corvo.invoices.list(from_="2026-10-01", to="2026-10-31")
     url = str(route.calls[0].request.url)
@@ -148,13 +146,13 @@ async def test_events(corvo: Corvo) -> None:
             json={
                 "data": [
                     {
-                            "id": "evt_1",
-                            "invoiceId": "inv_1",
-                            "fromStatus": "queued",
-                            "toStatus": "authorized",
-                            "reason": None,
-                            "createdAt": "2026-10-12T00:00:00Z",
-                        }
+                        "id": "evt_1",
+                        "invoiceId": "inv_1",
+                        "fromStatus": "queued",
+                        "toStatus": "authorized",
+                        "reason": None,
+                        "createdAt": "2026-10-12T00:00:00Z",
+                    }
                 ],
                 "pagination": {"hasMore": False, "nextCursor": None},
             },
@@ -226,9 +224,7 @@ async def test_download_url(corvo: Corvo) -> None:
 @respx.mock
 async def test_send_email_with_idempotency_key(corvo: Corvo) -> None:
     route = respx.post(f"{BASE_URL}/v1/invoices/inv_1/email").mock(
-        return_value=httpx.Response(
-            200, json={"data": {"emailId": "em_1", "status": "queued"}}
-        )
+        return_value=httpx.Response(200, json={"data": {"emailId": "em_1", "status": "queued"}})
     )
     data, error = await corvo.invoices.send_email("inv_1", idempotency_key="mail-1")
     assert error is None
@@ -243,7 +239,12 @@ async def test_create_batch_posts_the_items_without_an_idempotency_key_header(co
         "accepted": 1,
         "rejected": 1,
         "results": [
-            {"index": 0, "status": "accepted", "replayed": True, "invoice": {**INVOICE_PROPS, "deduction": 20}},
+            {
+                "index": 0,
+                "status": "accepted",
+                "replayed": True,
+                "invoice": {**INVOICE_PROPS, "deduction": 20},
+            },
             {
                 "index": 1,
                 "status": "rejected",
@@ -301,7 +302,11 @@ async def test_cancel_returns_the_typed_error(corvo: Corvo) -> None:
     respx.post(f"{BASE_URL}/v1/invoices/inv_1/cancel").mock(
         return_value=httpx.Response(
             409,
-            json={"statusCode": 409, "code": "ERROR_INVOICE_NOT_CANCELLABLE", "message": "not cancellable"},
+            json={
+                "statusCode": 409,
+                "code": "ERROR_INVOICE_NOT_CANCELLABLE",
+                "message": "not cancellable",
+            },
         )
     )
     data, error = await corvo.invoices.cancel("inv_1", {"reason": "other"})

@@ -18,10 +18,12 @@ from typing import (
     Optional,
     Union,
 )
+from urllib.parse import quote
 
 import httpx
 
-from .error import CorvoApiError, Result
+from ._version import VERSION
+from .error import CorvoApiError, RateLimit, Result
 
 Unwrap = Literal["data", "none"]
 Query = Mapping[str, Union[str, int, float, bool, None]]
@@ -40,6 +42,11 @@ class DownloadedFile:
     content: bytes = field(default=b"")
     mime_type: Optional[str] = None
     file_name: Optional[str] = None
+
+
+def seg(value: Any) -> str:
+    """Percent-encode one path segment (an id or tax id from the caller)."""
+    return quote(str(value), safe="")
 
 
 def is_private_host(hostname: str) -> bool:
@@ -98,6 +105,7 @@ class Transport:
         self._headers: Dict[str, str] = {
             "X-API-Key": api_key,
             "Accept": "application/json",
+            "User-Agent": f"corvo-nfse-python/{VERSION}",
         }
 
     @property
@@ -140,14 +148,17 @@ class Transport:
         *,
         files: Any,
         data: Any = None,
+        query: Optional[Query] = None,
         unwrap: Unwrap = "data",
     ) -> Result[Any]:
         # httpx sets the multipart Content-Type boundary itself; we never set it.
+        params = {k: v for k, v in (query or {}).items() if v is not None} or None
         response, error = await self._send(
             method,
             f"{self._base}{path}",
             files=files,
             data=data,
+            params=params,
             headers=dict(self._headers),
         )
         if error is not None:
@@ -169,6 +180,8 @@ class Transport:
         if error is not None:
             return (None, error)
         assert response is not None
+        if response.status_code >= 400:
+            return (None, self.to_error(response))
         disposition = response.headers.get("Content-Disposition")
         match = _FILENAME_RE.search(disposition) if disposition else None
         return (
@@ -264,9 +277,7 @@ class Transport:
             )
         return (response, None)
 
-    def _handle_response(
-        self, response: httpx.Response, unwrap_mode: Unwrap
-    ) -> Result[Any]:
+    def _handle_response(self, response: httpx.Response, unwrap_mode: Unwrap) -> Result[Any]:
         if response.status_code == 204:
             return (None, None)
         if response.status_code >= 400:
@@ -310,11 +321,13 @@ class Transport:
         else:
             message = f"Request failed with status {response.status_code}"
         raw_details = body.get("details")
-        details: list[Dict[str, Any]] = (
-            [part for part in raw_details if isinstance(part, dict)]
-            if isinstance(raw_details, list)
-            else []
-        )
+        details: list[Dict[str, Any]]
+        if isinstance(raw_details, list):
+            details = [part for part in raw_details if isinstance(part, dict)]
+        elif isinstance(raw_details, dict):
+            details = [raw_details]  # the contract allows an object as well as a list
+        else:
+            details = []
         request_id = body.get("requestId") or response.headers.get("X-Request-Id")
         retry_after = body.get("retryAfter")
         if not isinstance(retry_after, (int, float)):
@@ -332,4 +345,23 @@ class Transport:
             details=details,
             request_id=request_id if isinstance(request_id, str) else None,
             retry_after=int(retry_after) if retry_after is not None else None,
+            rate_limit=_rate_limit(response),
         )
+
+
+def _rate_limit(response: httpx.Response) -> Optional[RateLimit]:
+    """``X-RateLimit-*`` headers of an answer, when the server sent them."""
+    values: Dict[str, int] = {}
+    for key, header in (
+        ("limit", "X-RateLimit-Limit"),
+        ("remaining", "X-RateLimit-Remaining"),
+        ("reset", "X-RateLimit-Reset"),
+    ):
+        raw = response.headers.get(header)
+        if raw is None:
+            continue
+        try:
+            values[key] = int(float(raw))
+        except ValueError:
+            continue
+    return RateLimit(**values) if values else None

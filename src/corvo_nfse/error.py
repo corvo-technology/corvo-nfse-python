@@ -15,6 +15,15 @@ Result = Tuple[Optional[T], Optional["CorvoApiError"]]
 
 
 @dataclass
+class RateLimit:
+    """``X-RateLimit-Limit`` / ``-Remaining`` / ``-Reset`` (epoch seconds) of an answer."""
+
+    limit: Optional[int] = None
+    remaining: Optional[int] = None
+    reset: Optional[int] = None
+
+
+@dataclass
 class CorvoApiError(Exception):
     """Typed error carrying the server's stable ``code`` and HTTP context.
 
@@ -28,6 +37,7 @@ class CorvoApiError(Exception):
     details: List[Dict[str, Any]] = field(default_factory=list)
     request_id: Optional[str] = None
     retry_after: Optional[int] = None
+    rate_limit: Optional[RateLimit] = None
 
     def __post_init__(self) -> None:
         # Make str(error) / print(error) show the message, not the repr.

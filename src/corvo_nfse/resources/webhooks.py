@@ -11,6 +11,8 @@ from ..types.webhook import (
     WebhookCreateParams,
     WebhookDelivery,
     WebhookDeliveryStats,
+    WebhookRetried,
+    WebhookTestResult,
     WebhookWithSecret,
 )
 
@@ -29,9 +31,7 @@ class Deliveries:
     ) -> Result[Dict[str, Any]]:
         return await self._t.list_page(
             "/webhooks/deliveries",
-            self._query(
-                hours=hours, environment=environment, limit=limit, cursor=cursor
-            ),
+            self._query(hours=hours, environment=environment, limit=limit, cursor=cursor),
         )
 
     def iterate(
@@ -48,9 +48,7 @@ class Deliveries:
         """
         return self._t.iterate(
             "/webhooks/deliveries",
-            self._query(
-                hours=hours, environment=environment, limit=limit, cursor=cursor
-            ),
+            self._query(hours=hours, environment=environment, limit=limit, cursor=cursor),
         )
 
     async def stats(
@@ -62,7 +60,7 @@ class Deliveries:
         query: Dict[str, Any] = {"hours": hours, "environment": environment}
         return await self._t.request("GET", "/webhooks/deliveries/stats", query=query)
 
-    async def retry(self, delivery_id: str) -> Result[Dict[str, bool]]:
+    async def retry(self, delivery_id: str) -> Result[WebhookRetried]:
         return await self._t.request("POST", f"/webhooks/deliveries/{delivery_id}/retry")
 
     @staticmethod
@@ -105,7 +103,9 @@ class Webhooks:
         return await self._t.request("POST", "/webhooks", json=params)
 
     async def remove(self, webhook_id: str) -> Result[Dict[str, bool]]:
+        """Delete a webhook. Webhooks created with a key belong to that key's environment."""
         return await self._t.request("DELETE", f"/webhooks/{webhook_id}")
 
-    async def test(self, webhook_id: str) -> Result[Dict[str, bool]]:
+    async def test(self, webhook_id: str) -> Result[WebhookTestResult]:
+        """Send a ``webhook.test`` event. ``sent`` is ``False`` (with ``error``) when the destination failed."""
         return await self._t.request("POST", f"/webhooks/{webhook_id}/test")

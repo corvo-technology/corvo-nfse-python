@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import httpx
 import respx
-
 from conftest import BASE_URL, collect, corvo
+
 from corvo_nfse import Corvo
 
 COMPANY = {

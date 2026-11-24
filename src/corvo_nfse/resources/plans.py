@@ -20,7 +20,7 @@ class Plans:
         return await self._t.list_page("/plans", {"limit": limit, "cursor": cursor})
 
     async def get(self, slug: str) -> Result[PlanQuote]:
-        """The price of one plan (``free``, ``developer``, ``growth``, ``scale`` or ``volume``)."""
+        """The price of one plan (``free``, ``solo``, ``equipe``, ``empresa`` or ``escala``; read the slug as an open string)."""
         return await self._t.request("GET", f"/plans/{slug}")
 
     async def quote(self, volume: int) -> Result[Optional[PlanRecommendation]]:

@@ -6,8 +6,8 @@ import json
 
 import httpx
 import respx
-
 from conftest import BASE_URL
+
 from corvo_nfse import Corvo
 
 
@@ -80,7 +80,9 @@ async def test_plans_catalog(corvo: Corvo) -> None:
         )
     )
     respx.get(f"{BASE_URL}/v1/plans/growth").mock(
-        return_value=httpx.Response(200, json={"data": {"slug": "growth", "monthlyTotalCents": 8990}})
+        return_value=httpx.Response(
+            200, json={"data": {"slug": "growth", "monthlyTotalCents": 8990}}
+        )
     )
     respx.get(f"{BASE_URL}/v1/plans/quote", params={"volume": "20000"}).mock(
         return_value=httpx.Response(200, json={"data": {"recommended_plan": "volume"}})
@@ -97,7 +99,9 @@ async def test_plans_catalog(corvo: Corvo) -> None:
 
 @respx.mock
 async def test_plans_quote_is_none_for_an_invalid_volume(corvo: Corvo) -> None:
-    respx.get(f"{BASE_URL}/v1/plans/quote").mock(return_value=httpx.Response(200, json={"data": None}))
+    respx.get(f"{BASE_URL}/v1/plans/quote").mock(
+        return_value=httpx.Response(200, json={"data": None})
+    )
     quote, error = await corvo.plans.quote(0)
     assert error is None
     assert quote is None

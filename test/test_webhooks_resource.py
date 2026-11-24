@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import httpx
 import respx
-
 from conftest import BASE_URL, collect, corvo
+
 from corvo_nfse import Corvo
 
 WEBHOOK = {
@@ -37,9 +37,7 @@ async def test_list(corvo: Corvo) -> None:
 @respx.mock
 async def test_create_returns_secret_once(corvo: Corvo) -> None:
     route = respx.post(f"{BASE_URL}/v1/webhooks").mock(
-        return_value=httpx.Response(
-            201, json={"data": {**WEBHOOK, "secret": "whsec_test_123"}}
-        )
+        return_value=httpx.Response(201, json={"data": {**WEBHOOK, "secret": "whsec_test_123"}})
     )
     data, error = await corvo.webhooks.create(
         {"url": "https://example.com/hook", "events": ["nfse.invoice.authorized"]}

@@ -5,8 +5,8 @@ from __future__ import annotations
 import httpx
 import pytest
 import respx
-
 from conftest import API_KEY, BASE_URL
+
 from corvo_nfse import Corvo
 
 
@@ -62,7 +62,15 @@ def test_invalid_base_url() -> None:
 
 def test_namespaces_mounted() -> None:
     client = Corvo(api_key=API_KEY)
-    for name in ("billing", "certificates", "companies", "credits", "health", "invoices", "webhooks"):
+    for name in (
+        "billing",
+        "certificates",
+        "companies",
+        "credits",
+        "health",
+        "invoices",
+        "webhooks",
+    ):
         assert hasattr(client, name)
     assert hasattr(client.webhooks, "deliveries")
 

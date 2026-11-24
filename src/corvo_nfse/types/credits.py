@@ -2,55 +2,15 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional, TypedDict
+from typing import Literal, TypedDict
 
+from . import models
 
-class CreditBalance(TypedDict):
-    tenantId: str
-    balance: float
-    overageUnits: int
-    overageAmountCents: int
-    hardLimit: Optional[int]
-
-
-class CreditPlan(TypedDict):
-    id: str
-    slug: Literal["free", "developer", "growth", "scale", "volume"]
-    name: str
-    description: str
-    monthlyCreditAllowance: int
-    dailyLimit: Optional[int]
-    maxActiveCompanies: int
-    creditUnitPriceCents: int
-    throughputRps: float
-    includesWebhooks: bool
-    includesXmlDownload: bool
-    includesPdfDownload: bool
-    includesApiKeys: bool
-    supportTier: Literal["community", "email", "priority"]
-    active: bool
-    createdAt: str
-    updatedAt: str
-
-
-class _CreditTransactionRequired(TypedDict):
-    id: str
-    tenantId: str
-    type: str
-    amount: float  # in credits, not BRL
-    createdAt: str
-
-
-class CreditTransaction(_CreditTransactionRequired, total=False):
-    description: str
-    source: Literal["subscription", "avulso", "bonus"]
-    amountBrlCents: int
-    unitPriceCentsApplied: int
-    planIdSnapshot: str
-    reservedInvoiceId: str
-    periodId: str
-    isReservation: bool
-    relatedTransactionId: str
+CreditBalance = models.CreditBalance
+#: ``slug`` is an open string: ``free``, ``self-hosted``, ``solo``, ``equipe``, ``empresa``, ``escala``.
+CreditPlan = models.Plan
+CreditTransaction = models.CreditTransaction
+CreditPurchasePreview = models.PurchasePreview
 
 
 class CreditHistoryParams(TypedDict, total=False):
